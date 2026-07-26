@@ -1,4 +1,4 @@
-const CACHE_NAME = 'stargazer-cache-v19';
+const CACHE_NAME = 'stargazer-cache-v20';
 const STATIC_ASSETS = [
   './',
   './index.html',
@@ -40,9 +40,9 @@ self.addEventListener('fetch', (event) => {
   }
   const url = new URL(event.request.url);
   
-  // For API calls, bypass the Service Worker and go to network directly.
-  // app.js handles local storage cache fallbacks when offline.
-  if (url.pathname.startsWith('/api') || url.pathname.includes('/targets') || url.pathname.includes('/tonight') || url.pathname.includes('/iss') || url.pathname.includes('/seeing')) {
+  // For API calls or external requests (like NOAA, Nominatim, GitHub API, Cloud Run backend), bypass the Service Worker.
+  // We ONLY want to cache local static frontend assets (HTML, CSS, JS, images, fonts) from our own origin.
+  if (url.origin !== self.location.origin || url.pathname.startsWith('/api') || url.pathname.startsWith('/health') || url.pathname.startsWith('/gallery') || url.pathname.includes('/targets') || url.pathname.includes('/tonight') || url.pathname.includes('/iss') || url.pathname.includes('/seeing') || url.pathname.includes('/docs') || url.pathname.includes('/openapi.json')) {
     return;
   }
 
@@ -58,10 +58,16 @@ self.addEventListener('fetch', (event) => {
   event.respondWith(
     caches.match(event.request).then((response) => {
       return response || fetch(event.request).then((fetchRes) => {
+        if (!fetchRes || fetchRes.status !== 200 || fetchRes.type !== 'basic') {
+          return fetchRes;
+        }
         return caches.open(CACHE_NAME).then((cache) => {
           cache.put(event.request, fetchRes.clone());
           return fetchRes;
         });
+      }).catch((err) => {
+        console.warn('Service Worker fetch failed for:', event.request.url, err);
+        return new Response('Offline asset unavailable', { status: 503, statusText: 'Service Unavailable' });
       });
     })
   );

@@ -377,7 +377,12 @@ async function fetchAndRender(path, renderFn, fallback = null) {
           // Backward compatibility for raw JSON
           parsedCache = p;
         }
-        renderFn(parsedCache); 
+        try {
+          renderFn(parsedCache); 
+        } catch (err) {
+          console.warn(`Cache render failed for ${path}, forcing fresh fetch:`, err);
+          isFresh = false;
+        }
       }
     } catch(e) {}
   }
@@ -435,13 +440,13 @@ async function loadTonightReport() {
     window.currentLocationTimezone = data.location_timezone || null;
     updateClock(); // Force immediate update with new timezone
     
-    renderGoNogo(data);
-    renderSeeing(data.seeing, data);
-    renderMoon(data.moon);
-    renderPlanets(data.planets || data.visible_planets || [], data.planet_fact);
-    renderAlerts(data.must_see || []);
-    renderBestTargets(data.best_targets_tonight || []);
-    updateHeroStats(data);
+    try { renderGoNogo(data); } catch(e) { console.error('renderGoNogo error:', e); }
+    try { renderSeeing(data.seeing, data); } catch(e) { console.error('renderSeeing error:', e); }
+    try { renderMoon(data.moon); } catch(e) { console.error('renderMoon error:', e); }
+    try { renderPlanets(data.planets || data.visible_planets || [], data.planet_fact); } catch(e) { console.error('renderPlanets error:', e); }
+    try { renderAlerts(data.must_see || []); } catch(e) { console.error('renderAlerts error:', e); }
+    try { renderBestTargets(data.best_targets_tonight || []); } catch(e) { console.error('renderBestTargets error:', e); }
+    try { updateHeroStats(data); } catch(e) { console.error('updateHeroStats error:', e); }
 
     // Fire off async AI fetch and GitHub stars now that the UI is rendered
     fetchAIAnalysis();
@@ -695,7 +700,7 @@ function renderSeeing(seeing, data) {
 
   // ── Twilight Timeline ──
   const tlContainer = document.getElementById('twilight-timeline');
-  if (tlContainer && data.twilight_timeline) {
+  if (tlContainer && data && data.twilight_timeline) {
     document.getElementById('tl-sunset').textContent = data.twilight_timeline.sunset || '--:--';
     document.getElementById('tl-astro-start').textContent = data.twilight_timeline.astro_start || '--:--';
     document.getElementById('tl-astro-end').textContent = data.twilight_timeline.astro_end || '--:--';
@@ -713,7 +718,7 @@ function renderSeeing(seeing, data) {
     
     // Get the current hour in the target timezone (or local as fallback)
     let startHour = new Date().getHours();
-    if (data.location_timezone) {
+    if (data && data.location_timezone) {
       try {
         const parts = new Intl.DateTimeFormat('en-US', {
           timeZone: data.location_timezone,
