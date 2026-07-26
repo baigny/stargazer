@@ -383,10 +383,11 @@
                   <span>📐 Perihelion: Sep 27, 2024 · Closest approach: Oct 12, 2024</span>
                 </div>
                 <div class="comet-desc">One of the brightest comets in decades — reached magnitude −4.9 at peak. Now fading but still a historic visitor. Expected to return in ~80,000 years.</div>
-                <div class="comet-stats">
+                <div class="comet-stats" style="display:flex; flex-wrap:wrap; align-items:center; gap:8px;">
                   <span class="comet-stat">🏎️ Speed: ~68 km/s</span>
                   <span class="comet-stat">📡 Origin: Oort Cloud</span>
                   <span class="comet-stat">⭐ Peak Mag: −4.9</span>
+                  <button onclick="addToPlan('comet_tsuchinshan', '🌠 C/2023 A3 Tsuchinshan-ATLAS', 14.5, -5.2)" class="btn-fov" style="margin-left:auto; background:rgba(168,85,247,0.15); color:#c084fc; border:1px solid rgba(168,85,247,0.3); padding:2px 8px; border-radius:4px; cursor:pointer; font-size:0.75rem;">+ Add to Plan</button>
                 </div>
               </div>
 
@@ -399,10 +400,11 @@
                   <span>📐 Perihelion: Apr 21, 2024 · Period: ~71 years</span>
                 </div>
                 <div class="comet-desc">The "Devil Comet" — famous for its cryo-volcanic outbursts that gave it distinctive horn-shaped coma. Last visible to the naked eye in 1954. Returns ~2095.</div>
-                <div class="comet-stats">
+                <div class="comet-stats" style="display:flex; flex-wrap:wrap; align-items:center; gap:8px;">
                   <span class="comet-stat">🏎️ Speed: ~44 km/s</span>
                   <span class="comet-stat">📡 Short-period</span>
                   <span class="comet-stat">⭐ Peak Mag: +4.0</span>
+                  <button onclick="addToPlan('comet_pons_brooks', '🌠 12P/Pons-Brooks', 0.5, 33.2)" class="btn-fov" style="margin-left:auto; background:rgba(168,85,247,0.15); color:#c084fc; border:1px solid rgba(168,85,247,0.3); padding:2px 8px; border-radius:4px; cursor:pointer; font-size:0.75rem;">+ Add to Plan</button>
                 </div>
               </div>
 
@@ -415,10 +417,11 @@
                   <span>📐 Perihelion: ~Nov 2, 2021 · Period: ~6.5 years</span>
                 </div>
                 <div class="comet-desc">The Rosetta Mission target. ESA's Rosetta spacecraft orbited it for 2 years and landed the Philae probe on its surface in 2014 — the first soft comet landing in history.</div>
-                <div class="comet-stats">
+                <div class="comet-stats" style="display:flex; flex-wrap:wrap; align-items:center; gap:8px;">
                   <span class="comet-stat">🏎️ Speed: ~34 km/s</span>
                   <span class="comet-stat">📡 Jupiter-family</span>
                   <span class="comet-stat">📏 Size: 4.3 × 2.6 km</span>
+                  <button onclick="addToPlan('comet_67p', '🌠 67P/Churyumov-Gerasimenko', 7.8, 22.1)" class="btn-fov" style="margin-left:auto; background:rgba(168,85,247,0.15); color:#c084fc; border:1px solid rgba(168,85,247,0.3); padding:2px 8px; border-radius:4px; cursor:pointer; font-size:0.75rem;">+ Add to Plan</button>
                 </div>
               </div>
 
@@ -431,10 +434,11 @@
                   <span>📐 Perihelion: Jan 13, 2025 · Southern hemisphere favored</span>
                 </div>
                 <div class="comet-desc">Reached potentially spectacular brightness (mag −2 to −3) near perihelion in January 2025, best seen from the southern hemisphere. Likely a dynamically new comet on its first inner solar system pass.</div>
-                <div class="comet-stats">
+                <div class="comet-stats" style="display:flex; flex-wrap:wrap; align-items:center; gap:8px;">
                   <span class="comet-stat">📡 Oort Cloud</span>
                   <span class="comet-stat">⭐ Est. Peak: −3</span>
                   <span class="comet-stat">🔭 Best: S. Hemisphere</span>
+                  <button onclick="addToPlan('comet_c2024_g3', '🌠 C/2024 G3 (ATLAS)', 18.2, -28.4)" class="btn-fov" style="margin-left:auto; background:rgba(168,85,247,0.15); color:#c084fc; border:1px solid rgba(168,85,247,0.3); padding:2px 8px; border-radius:4px; cursor:pointer; font-size:0.75rem;">+ Add to Plan</button>
                 </div>
               </div>
 
@@ -771,9 +775,11 @@
       </div>
       
       <!-- Constellation Search & Selector Tabs -->
-      <div class="constellation-search-wrap" style="padding: 10px 24px 0; display: flex; align-items: center; gap: 10px;">
-        <span style="font-size: 0.85rem; color: var(--text-secondary);">🔍 Search:</span>
-        <input type="text" id="constellation-search" placeholder="Type constellation name..." style="background: rgba(0, 0, 0, 0.4); border: 1px solid rgba(255, 255, 255, 0.15); color: var(--text-primary); border-radius: 6px; padding: 6px 12px; font-size: 0.85rem; width: 100%; max-width: 280px; outline: none; transition: all 0.2s;">
+      <div class="constellation-search-wrap" style="padding: 10px 24px 0; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+        <span style="font-size: 0.85rem; color: var(--text-secondary);">🔍 Search Constellation:</span>
+        <input type="text" id="constellation-search" placeholder="Type constellation name..." style="background: rgba(0, 0, 0, 0.4); border: 1px solid rgba(255, 255, 255, 0.15); color: var(--text-primary); border-radius: 6px; padding: 6px 12px; font-size: 0.85rem; width: 100%; max-width: 240px; outline: none; transition: all 0.2s;">
+        <span style="font-size: 0.85rem; color: var(--text-secondary); margin-left: 10px;">🎯 Filter Target Name:</span>
+        <input type="text" id="target-name-search" placeholder="Type object name (e.g. M31, Mars, Ring)..." style="background: rgba(0, 0, 0, 0.4); border: 1px solid rgba(255, 255, 255, 0.15); color: var(--text-primary); border-radius: 6px; padding: 6px 12px; font-size: 0.85rem; width: 100%; max-width: 260px; outline: none; transition: all 0.2s;" oninput="window.filterTargetByName(this.value)">
       </div>
       <div class="constellation-tabs" id="constellation-tabs" style="display: flex; overflow-x: auto; white-space: nowrap; flex-wrap: nowrap; gap: 10px; padding: 10px 24px; background: rgba(0, 0, 0, 0.2); border-bottom: 1px solid var(--border);">
         <!-- Dynamically populated by JS based on visibility -->
@@ -802,6 +808,18 @@
         </div>
       </div>
       <div class="card-body" style="padding: 20px;">
+        <!-- Sky Objects in Motion Quick-Add Bar -->
+        <div style="margin-bottom: 18px; padding: 12px 14px; background: rgba(56, 189, 248, 0.05); border: 1px solid rgba(56, 189, 248, 0.15); border-radius: 8px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
+          <div style="display: flex; align-items: center; gap: 6px; font-size: 0.8rem; color: #38bdf8; font-weight: bold;">
+            <span>🚀 Quick-Add Sky Objects in Motion:</span>
+          </div>
+          <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+            <button onclick="addToPlan('iss_pass', '🛰️ ISS Orbit Pass', 0, 0)" class="filter-btn" style="font-size: 0.75rem; padding: 4px 8px; background: rgba(56,189,248,0.1); border-color: rgba(56,189,248,0.3); color: #38bdf8;">+ ISS Pass</button>
+            <button onclick="addToPlan('c2023_a3', '☄️ Comet Tsuchinshan-ATLAS', 14.5, -5.2)" class="filter-btn" style="font-size: 0.75rem; padding: 4px 8px; background: rgba(168,85,247,0.1); border-color: rgba(168,85,247,0.3); color: #c084fc;">+ Bright Comet</button>
+            <button onclick="addToPlan('meteor_shower', '💫 Active Meteor Shower', 0, 0)" class="filter-btn" style="font-size: 0.75rem; padding: 4px 8px; background: rgba(245,158,11,0.1); border-color: rgba(245,158,11,0.3); color: #fbbf24;">+ Meteor Shower</button>
+            <button onclick="addToPlan('neo_asteroid', '🪨 Near-Earth Asteroid', 0, 0)" class="filter-btn" style="font-size: 0.75rem; padding: 4px 8px; background: rgba(34,197,94,0.1); border-color: rgba(34,197,94,0.3); color: #86efac;">+ NEO Asteroid</button>
+          </div>
+        </div>
         <!-- Visual Timeline Bar -->
         <div style="margin-bottom: 25px;">
           <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text-dim); margin-bottom: 6px;">
@@ -1366,6 +1384,6 @@
   <script src="moon3d.js?v=64" defer></script>
   <script src="planets3d.js?v=64" defer></script>
   <script src="hero-solar-system.js?v=64" defer></script>
-  <script src="app.js?v=65" defer></script>
+  <script src="app.js?v=66" defer></script>
 </body>
 </html>

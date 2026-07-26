@@ -1822,6 +1822,7 @@ async function loadISS() {
           <span class="iss-vis-label" style="color: ${visColor}">
             ${visText}
           </span>
+          <button onclick="addToPlan('iss_pass_' + (${Math.random().toString(36).substr(2, 4)}), '🛰️ ISS Orbit Pass (' + ('${p.rise || ''}'.replace(/'/g, '')) + ')', 0, 0)" class="btn-fov" style="margin-left:8px; background:rgba(56,189,248,0.15); color:#38bdf8; border:1px solid rgba(56,189,248,0.3); padding:2px 8px; border-radius:4px; cursor:pointer; font-size:0.75rem;">+ Plan</button>
         </div>
       `;
     }).join('');
@@ -1942,6 +1943,25 @@ async function loadConstellations() {
     const tabsContainer = document.getElementById('constellation-tabs');
     if (tabsContainer) {
       tabsContainer.innerHTML = '';
+      
+      // Pinned special tab for "All Visible Now (My Lat/Lon)"
+      const visTab = document.createElement('button');
+      visTab.className = `const-tab ${currentConstellation === 'Visible' ? 'active' : ''}`;
+      visTab.dataset.const = 'Visible';
+      visTab.style.cssText = 'background: rgba(34, 197, 94, 0.15); border: 1px solid #22c55e; color: #86efac; font-weight: bold; padding: 4px 10px; border-radius: 6px; cursor: pointer;';
+      visTab.innerHTML = '🌟 Visible Now (My Sky)';
+      visTab.addEventListener('click', (e) => {
+        document.querySelectorAll('.const-tab').forEach(b => b.classList.remove('active'));
+        visTab.classList.add('active');
+        currentConstellation = 'Visible';
+        localStorage.setItem('sg_constellation', currentConstellation);
+        window.targetDisplayedCount = 24;
+        const dict = window.i18n[currentLang] || window.i18n['en'];
+        document.getElementById('target-db-title').textContent = `🌟 All Targets Visible Now (Lat: ${currentLat ? Math.round(currentLat*100)/100 : 'N/A'}, Lon: ${currentLon ? Math.round(currentLon*100)/100 : 'N/A'})`;
+        loadTargets();
+      });
+      tabsContainer.appendChild(visTab);
+
       const allConst = [...data.constellations].sort((a, b) => a.name.localeCompare(b.name));
       allConst.forEach(c => {
         const tab = document.createElement('button');
@@ -2034,6 +2054,24 @@ let currentConstellation = localStorage.getItem('sg_constellation') || 'Sco';
 let targetDisplayedCount = 12; 
 let activeFilter = 'all';
 
+window.getCompassDirection = function(deg) {
+  if (deg == null || isNaN(deg)) return '';
+  const d = ((deg % 360) + 360) % 360;
+  const dirs = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW', 'N'];
+  return dirs[Math.round(d / 22.5)];
+};
+
+window.filterTargetByName = function(val) {
+  window.targetNameQuery = val ? val.toLowerCase().trim() : '';
+  if (window.lastLoadedTargets) {
+    const typeBtn = document.querySelector('.type-btn.active');
+    const typeFilter = typeBtn ? typeBtn.dataset.filter : 'all';
+    const equipBtn = document.querySelector('.equip-btn.active');
+    const equipFilter = equipBtn ? equipBtn.dataset.equip : 'all';
+    renderTargetGrid(window.lastLoadedTargets, window.lastLoadedLiveMap || {}, typeFilter, equipFilter);
+  }
+};
+
 async function loadTargets() {
   await fetchAndRender(`/targets?constellation=${currentConstellation}`, (liveData) => {
     if (!liveData || !liveData.targets) return;
@@ -2042,6 +2080,9 @@ async function loadTargets() {
     // Build a live altitude map from API data
     const liveMap = {};
     targets.forEach(t => { liveMap[t.id] = t; });
+
+    window.lastLoadedTargets = targets;
+    window.lastLoadedLiveMap = liveMap;
 
     const typeBtn = document.querySelector('.type-btn.active');
     const typeFilter = typeBtn ? typeBtn.dataset.filter : 'all';
@@ -2116,8 +2157,29 @@ function renderTargetGrid(targets, liveMap, typeFilter = 'all', equipFilter = 'a
         equipMatch = t.difficulty === 'naked_eye' || t.difficulty === 'easy' || t.magnitude <= 7;
       }
     }
-    return typeMatch && equipMatch;
+    
+    let nameMatch = true;
+    if (window.targetNameQuery) {
+      const q = window.targetNameQuery;
+      nameMatch = (t.name && t.name.toLowerCase().includes(q)) || (t.id && t.id.toLowerCase().includes(q)) || (t.type && t.type.toLowerCase().includes(q)) || (t.description && t.description.toLowerCase().includes(q));
+    }
+    
+    let visTabMatch = true;
+    if (currentConstellation === 'Visible') {
+      const live = liveMap[t.id] || {};
+      visTabMatch = live.visible === true || live.in_fov === true || (live.altitude_deg != null && live.altitude_deg > 0);
+    }
+    
+    return typeMatch && equipMatch && nameMatch && visTabMatch;
   });
+
+  if (currentConstellation === 'Visible') {
+    filtered.sort((a, b) => {
+      const altA = (liveMap[a.id] && liveMap[a.id].altitude_deg) != null ? liveMap[a.id].altitude_deg : -90;
+      const altB = (liveMap[b.id] && liveMap[b.id].altitude_deg) != null ? liveMap[b.id].altitude_deg : -90;
+      return altB - altA;
+    });
+  }
 
   // 3. Smoothly slice the processed filtered data for chunked rendering
   console.log("Filtered length:", filtered.length, "t.type was", targets.length ? targets[0].type : "N/A");
@@ -2131,8 +2193,9 @@ function renderTargetGrid(targets, liveMap, typeFilter = 'all', equipFilter = 'a
       try {
         const live = liveMap[t.id] || {};
         const visibleNow = live.in_fov === true;
+        const compassDir = live.azimuth_deg != null ? (window.getCompassDirection ? window.getCompassDirection(live.azimuth_deg) : (live.direction || '')) : (live.direction || '');
         const altText = live.altitude_deg != null
-          ? `${live.altitude_deg}° ${live.direction || ''} ${live.azimuth_deg ? '(' + Math.round(live.azimuth_deg) + '°)' : ''}`
+          ? `Alt: ${live.altitude_deg}° • Az: ${live.azimuth_deg != null ? Math.round(live.azimuth_deg) + '° (' + compassDir + ')' : compassDir}`
           : null;
 
         const dict = window.i18n && window.i18n[currentLang] ? window.i18n[currentLang] : (window.i18n && window.i18n['en'] ? window.i18n['en'] : {});
@@ -3418,6 +3481,9 @@ document.addEventListener('DOMContentLoaded', () => {
             <div style="text-align: right; color: #a855f7; font-size: 0.85rem; font-family: var(--font-mono);">
               <div style="font-size: 0.6rem; color: #94a3b8; font-family: var(--font-sans); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 2px;">${missDistText}</div>
               ${isMetric ? a.miss_distance_km.toLocaleString() : Math.round(a.miss_distance_km * 0.621371).toLocaleString()} ${isMetric ? 'km' : 'mi'}
+              <div style="margin-top:6px;">
+                <button onclick="addToPlan('ast_' + ('${a.name}'.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase()), '🪨 ' + ('${a.name}'.replace(/'/g, '')), 0, 0)" class="btn-fov" style="background:rgba(34,197,94,0.15); color:#86efac; border:1px solid rgba(34,197,94,0.3); padding:2px 8px; border-radius:4px; cursor:pointer; font-size:0.75rem;">+ Add to Plan</button>
+              </div>
             </div>
           </div>
         `;
@@ -3489,6 +3555,9 @@ document.addEventListener('DOMContentLoaded', () => {
               Active: ${s.activity_period} · Best: ${s.hemisphere} Hem. · Parent: ${s.parent_body}
             </div>
             <div style="color:#cbd5e1; font-size:0.75rem; margin-top:6px; font-style:italic;">${s.notes}</div>
+            <div style="margin-top:8px; display:flex; justify-content:flex-end;">
+              <button onclick="addToPlan('met_' + ('${s.name}'.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase()), '💫 ' + ('${s.name}'.replace(/'/g, '')), 0, 0)" class="btn-fov" style="background:rgba(245,158,11,0.15); color:#fbbf24; border:1px solid rgba(245,158,11,0.3); padding:2px 8px; border-radius:4px; cursor:pointer; font-size:0.75rem;">+ Add to Plan</button>
+            </div>
           </div>
         `;
       }).join('');

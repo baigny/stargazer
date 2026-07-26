@@ -34,8 +34,8 @@ def get_visible_targets(dt: Optional[datetime] = None, lat=None, lon=None, const
 
     results = []
     all_targets = SCORPIUS_TARGETS + NEARBY_TARGETS + OTHER_TARGETS
-    if constellation and constellation != "All":
-        all_targets = [t for t in all_targets if t.get("constellation", "Sco") == constellation]
+    if constellation and constellation.lower() not in ["all", "all_visible", "*", "visible"]:
+        all_targets = [t for t in all_targets if t.get("constellation", "Sco").lower() == constellation.lower()]
 
     for target in all_targets:
         ra_h = target["ra_h"] + target["ra_m"] / 60 + target["ra_s"] / 3600
@@ -47,7 +47,9 @@ def get_visible_targets(dt: Optional[datetime] = None, lat=None, lon=None, const
         alt, az, _ = astrometric.apparent().altaz()
 
         visible = bool(alt.degrees > MIN_ALTITUDE_DEG)
-        mag = target.get("magnitude", 99)
+        mag = target.get("magnitude")
+        if mag is None:
+            mag = 99
         in_limiting_mag = bool(mag <= LIMITING_MAG if mag != 99 else True)
         
         # Check light pollution requirement
