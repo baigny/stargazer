@@ -494,10 +494,10 @@ async function fetchAIAnalysis(pollCount = 0) {
     if (!res.ok) throw new Error('AI API failed');
     const aiData = await res.json();
     if (aiData.status === 'processing') {
-      // Background AI generation is running, poll every 10s
-      // Give up after 30 polls (5 minutes) to avoid infinite spinning
-      if (pollCount >= 30) {
-        console.warn("AI analysis timed out after 5 minutes, falling back to rule-based");
+      // Background AI generation is running, poll every 5-10s
+      // Give up after 10 polls (~1.5 minutes) to avoid infinite spinning
+      if (pollCount >= 10) {
+        console.warn("AI analysis timed out, falling back to rule-based");
         _showRuleBasedFallback(engineBadgeEl, explanationEl);
         return;
       }
@@ -507,7 +507,7 @@ async function fetchAIAnalysis(pollCount = 0) {
         explanationEl.innerHTML = `✨ <span style="font-style:italic;">${dict.ai_analyzing || 'AI is analyzing the atmosphere (this takes a moment)...'}</span>`;
         explanationEl.style.display = 'block';
       }
-      setTimeout(() => fetchAIAnalysis(pollCount + 1), 10000);
+      setTimeout(() => fetchAIAnalysis(pollCount + 1), pollCount === 0 ? 5000 : 10000);
       return;
     }
 
@@ -543,6 +543,11 @@ function _showRuleBasedFallback(engineBadgeEl, explanationEl) {
   }
   if (explanationEl) {
     explanationEl.classList.remove('ai-loading-glow');
+    if (window.lastTonightData && window.lastTonightData.seeing && window.lastTonightData.seeing.seeing_explanation) {
+      explanationEl.textContent = window.lastTonightData.seeing.seeing_explanation;
+    } else {
+      explanationEl.style.display = 'none';
+    }
   }
   const cachedMoonFact = localStorage.getItem(`stargazer_moon_fact_${currentLang}`);
   const moonWrapEl = document.getElementById('moon-fact-wrap');

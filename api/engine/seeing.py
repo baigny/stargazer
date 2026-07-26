@@ -98,16 +98,15 @@ def _save_result(current_hash, result, fallback_args):
             
         db[current_hash] = {"timestamp": int(time.time()), "data": result}
         _save_ai_cache(db)
-    elif current_hash in db and db[current_hash].get("data", {}).get("status") == "processing":
-        if fallback_args:
-            weather, moon_illum, moon_alt, moon_dist = fallback_args
-            fb = _rule_based_seeing_score(weather, moon_illum, moon_alt, moon_dist)
-            fb["ai_powered"] = False
-            db[current_hash] = {"timestamp": int(time.time()), "data": fb}
-            _save_ai_cache(db)
-        else:
-            del db[current_hash]
-            _save_ai_cache(db)
+    elif fallback_args:
+        weather, moon_illum, moon_alt, moon_dist = fallback_args
+        fb = _rule_based_seeing_score(weather, moon_illum, moon_alt, moon_dist)
+        fb["ai_powered"] = False
+        db[current_hash] = {"timestamp": int(time.time()), "data": fb}
+        _save_ai_cache(db)
+    elif current_hash in db:
+        del db[current_hash]
+        _save_ai_cache(db)
 
 
 def _background_ai_task(payload, headers, current_hash, fallback_args=None):
@@ -182,7 +181,7 @@ def _ai_seeing_analysis(weather: dict, moon_illum: float, moon_alt: float, visib
     if current_hash in cache_db:
         entry = cache_db[current_hash]
         # Evict stale processing locks (e.g. if the thread died)
-        if entry.get("data", {}).get("status") == "processing" and int(time.time()) - entry.get("timestamp", 0) > 240:
+        if entry.get("data", {}).get("status") == "processing" and int(time.time()) - entry.get("timestamp", 0) > 20:
             import logging
             logging.getLogger("stargazer").warning("AI Seeing: Found stale processing cache. Evicting.")
             del cache_db[current_hash]
@@ -244,20 +243,18 @@ Respond ONLY with valid JSON — no markdown, no explanation outside the JSON:
     }
 
     try:
-        # Mark as processing in cache immediately and start thread to bypass NGINX/Cloudflare timeouts
-        import threading, time
+        import threading, time, os
+        # If in a serverless environment (like Cloud Run), CPU is throttled after HTTP response returns.
+        # Run synchronously and DO NOT write "processing" lock to cache to prevent polling deadlocks.
+        if os.getenv("K_SERVICE"):
+            _background_ai_task(payload, headers, current_hash, (weather, moon_illum, moon_alt, moon_dist))
+            cache_db = _load_ai_cache()
+            return cache_db.get(current_hash, {}).get("data", _rule_based_seeing_score(weather, moon_illum, moon_alt, moon_dist))
+        
+        # On standard servers, mark as processing in cache and start thread
         cache_db = _load_ai_cache()
         cache_db[current_hash] = {"timestamp": int(time.time()), "data": {"status": "processing"}}
         _save_ai_cache(cache_db)
-        
-        # If in a serverless environment (like Cloud Run), CPU is throttled after HTTP response returns.
-        # Run synchronously to ensure execution finishes before the request completes.
-        import os
-        if os.getenv("K_SERVICE"):
-            _background_ai_task(payload, headers, current_hash, (weather, moon_illum, moon_alt, moon_dist))
-            # Reload from cache to get the computed data
-            cache_db = _load_ai_cache()
-            return cache_db.get(current_hash, {}).get("data", {"status": "processing"})
         
         t = threading.Thread(target=_background_ai_task, args=(payload, headers, current_hash, (weather, moon_illum, moon_alt, moon_dist)))
         t.start()

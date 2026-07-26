@@ -69,7 +69,10 @@ def moderate_image(image_base64: str) -> tuple[bool, str]:
         if res.status_code == 200:
             data = res.json()
             content = data["choices"][0]["message"]["content"].strip()
-            if "INAPPROPRIATE" in content.upper():
+            upper_content = content.upper()
+            if upper_content.startswith("SAFE") or "IS SAFE" in upper_content or "NO INAPPROPRIATE" in upper_content or "NOT INAPPROPRIATE" in upper_content or "WITHOUT INAPPROPRIATE" in upper_content:
+                return True, "Passed moderation"
+            if "INAPPROPRIATE" in upper_content or "UNSAFE" in upper_content or "PORN" in upper_content or "NSFW" in upper_content or "NUDITY" in upper_content or "GORE" in upper_content:
                 return False, content
             return True, "Passed moderation"
         else:
