@@ -38,8 +38,7 @@ def moderate_image(image_base64: str) -> tuple[bool, str]:
     if "," in image_base64:
         image_base64 = image_base64.split(",")[1]
     prompt = (
-        "Analyze this image. Is it pornography, NSFW, nudity, gore, hate speech, violence, "
-        "or otherwise inappropriate? Answer ONLY with 'SAFE' or 'INAPPROPRIATE' followed by a short, 1-sentence reason."
+        "Analyze this image for safety. Answer ONLY with the word 'SAFE' or 'REJECTED' at the very beginning of your response, followed by a short reason."
     )
     headers = {
         "Content-Type": "application/json",
@@ -70,9 +69,7 @@ def moderate_image(image_base64: str) -> tuple[bool, str]:
             data = res.json()
             content = data["choices"][0]["message"]["content"].strip()
             upper_content = content.upper()
-            if upper_content.startswith("SAFE") or "IS SAFE" in upper_content or "NO INAPPROPRIATE" in upper_content or "NOT INAPPROPRIATE" in upper_content or "WITHOUT INAPPROPRIATE" in upper_content:
-                return True, "Passed moderation"
-            if "INAPPROPRIATE" in upper_content or "UNSAFE" in upper_content or "PORN" in upper_content or "NSFW" in upper_content or "NUDITY" in upper_content or "GORE" in upper_content:
+            if upper_content.startswith("REJECTED") or "REJECTED:" in upper_content or "REJECTED." in upper_content or upper_content.startswith("INAPPROPRIATE"):
                 return False, content
             return True, "Passed moderation"
         else:
