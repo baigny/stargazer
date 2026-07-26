@@ -537,7 +537,7 @@ def constellation_window(
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 
-from engine.gallery import add_gallery_entry, get_gallery_entries, get_gallery_image, report_image, get_gallery_counts
+from engine.gallery import add_gallery_entry, get_gallery_entries, get_gallery_image, report_image, get_gallery_counts, delete_gallery_entry
 import base64
 from fastapi import Response
 
@@ -607,5 +607,13 @@ def report_gallery_image(image_id: int):
     try:
         report_image(image_id)
         return {"status": "reported"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.delete("/api/gallery/{entry_id}")
+def delete_entry(entry_id: int):
+    try:
+        delete_gallery_entry(entry_id)
+        return {"status": "deleted"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

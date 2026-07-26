@@ -112,7 +112,9 @@ def add_gallery_entry(target_id: str, target_name: str, author: str, location: s
 def get_gallery_entries(target_id: str = None) -> list[dict]:
     data = _load_data()
     if target_id:
-        data = [e for e in data if e["target_id"] == target_id]
+        data = [e for e in data if e["target_id"] == target_id and e.get("reported", 0) == 0]
+    else:
+        data = [e for e in data if e.get("reported", 0) == 0]
     # Sort by ID descending
     data.sort(key=lambda x: x["id"], reverse=True)
     return data
@@ -136,6 +138,17 @@ def report_image(image_id: int):
             e["reported"] = e.get("reported", 0) + 1
             break
     _save_data(data)
+
+def delete_gallery_entry(entry_id: int):
+    data = _load_data()
+    data = [e for e in data if e["id"] != entry_id]
+    _save_data(data)
+    img_path = os.path.join(IMG_DIR, f"{entry_id}.b64")
+    if os.path.exists(img_path):
+        try:
+            os.remove(img_path)
+        except Exception:
+            pass
 
 def get_gallery_counts() -> dict:
     data = _load_data()
