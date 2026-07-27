@@ -224,6 +224,7 @@ if (!activeLoc && savedLocations.length > 0) {
 let currentLat = activeLoc ? parseFloat(activeLoc.lat) : null;
 let currentLon = activeLoc ? parseFloat(activeLoc.lon) : null;
 window.currentBortle = localStorage.getItem('stargazer_bortle') || null;
+if (window.currentBortle === 'auto' || window.currentBortle === '') window.currentBortle = null;
 
 // ── Starfield Canvas ────────────────────────────────────────────────────────
 (function initStarfield() {
@@ -2416,7 +2417,7 @@ function initLocationUI() {
       
       const selectBortle = document.getElementById('select-bortle');
       if (selectBortle) {
-        selectBortle.value = window.currentBortle || "6";
+        selectBortle.value = window.currentBortle || "auto";
       }
       
       modalData.classList.remove('hidden');
@@ -2426,8 +2427,14 @@ function initLocationUI() {
   const selectBortle = document.getElementById('select-bortle');
   if (selectBortle) {
     selectBortle.addEventListener('change', (e) => {
-      window.currentBortle = e.target.value;
-      localStorage.setItem('stargazer_bortle', window.currentBortle);
+      const val = e.target.value;
+      if (val === 'auto' || !val) {
+        window.currentBortle = null;
+        localStorage.removeItem('stargazer_bortle');
+      } else {
+        window.currentBortle = val;
+        localStorage.setItem('stargazer_bortle', window.currentBortle);
+      }
       // Reload targets and tonight report
       loadTonightReport();
       loadTargets();

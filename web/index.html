@@ -1329,8 +1329,9 @@
         
         <div style="background: rgba(255,255,255,0.05); padding: 15px; border-radius: 8px;">
           <h3 style="margin-top:0; font-size: 1rem;">🌃 Sky Darkness (Bortle Class)</h3>
-          <p style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 10px;">Select your light pollution level to filter out washed-out targets.</p>
+          <p style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 10px;">Choose <strong>Auto-Detect</strong> to dynamically use your current location's true Bortle class, or select a custom Class 1–9 to simulate what targets you can see under different dark sky conditions!</p>
           <select id="select-bortle" class="location-input" aria-label="Sky Darkness (Bortle Class)" style="width: 100%; margin-bottom: 0;">
+            <option value="auto">✨ Auto-Detect from Location (Recommended)</option>
             <option value="1">Class 1: Excellent dark-sky site</option>
             <option value="2">Class 2: Typical truly dark site</option>
             <option value="3">Class 3: Rural sky</option>
