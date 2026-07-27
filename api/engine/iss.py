@@ -15,8 +15,6 @@ from .planets import _az_to_direction
 from .cache import get_cache, set_cache
 from config import LATITUDE, LONGITUDE, ELEVATION_M
 
-N, W = 1, -1
-
 def _iss_cache_key(lat, lon, count):
     return f"iss_passes_{round(lat or 0, 2)}_{round(lon or 0, 2)}_{count}"
 
@@ -34,7 +32,7 @@ def get_iss_passes(count: int = 3, lat=None, lon=None) -> list[dict]:
     tz = _get_tz(lat, lon)
     _lat = float(lat) if lat is not None else LATITUDE
     _lon = float(lon) if lon is not None else LONGITUDE
-    observer = wgs84.latlon(_lat * N, abs(_lon) * W, elevation_m=ELEVATION_M)
+    observer = wgs84.latlon(_lat, _lon, elevation_m=ELEVATION_M)
 
     # ── Step 1: Fetch live ISS TLE with caching ─────────────────────────────────
     name, line1, line2 = None, None, None

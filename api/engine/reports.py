@@ -41,17 +41,18 @@ def get_tonight_report(lat=None, lon=None, lang: str = "en", bortle: Optional[in
 
     moon = get_moon_info(now, lat=lat, lon=lon)
     planets = get_planet_positions(now, lat=lat, lon=lon, dusk=dusk, dawn=dawn)
-    targets = get_visible_targets(now, lat=lat, lon=lon, bortle=bortle)
-    seeing = get_seeing_forecast(lat=lat, lon=lon, lang=lang)
-    twilight_timeline = get_twilight_timeline(lat=lat, lon=lon)
-
-    visible_planets = [p for p in planets if p["visible_tonight"]]
     
     if bortle is not None:
         use_bortle = bortle
     else:
         from .bortle import get_bortle_class
         use_bortle = get_bortle_class(lat, lon) if lat and lon else BORTLE_CLASS
+
+    targets = get_visible_targets(now, lat=lat, lon=lon, bortle=use_bortle)
+    seeing = get_seeing_forecast(lat=lat, lon=lon, lang=lang)
+    twilight_timeline = get_twilight_timeline(lat=lat, lon=lon)
+
+    visible_planets = [p for p in planets if p["visible_tonight"]]
         
     best_targets = [t for t in targets if t.get("in_fov") and t.get("bortle_min", 99) <= use_bortle + 1][:5]
 

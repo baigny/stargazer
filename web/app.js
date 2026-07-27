@@ -2356,6 +2356,7 @@ function initLocationUI() {
 
   window.activateLocation = (id) => {
     localStorage.setItem('stargazer_active_loc', id);
+    localStorage.removeItem('stargazer_bortle');
     location.reload(); // Refresh to apply changes instantly everywhere
   };
 

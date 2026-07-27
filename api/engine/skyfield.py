@@ -8,7 +8,7 @@ from datetime import date, datetime, timedelta
 from typing import Optional, Tuple
 
 from config import ELEVATION_M, LATITUDE, LONGITUDE, TIMEZONE
-from skyfield.api import N, W, wgs84
+from skyfield.api import wgs84
 from skyfield.api import Loader
 from skyfield import almanac
 from zoneinfo import ZoneInfo
@@ -31,9 +31,9 @@ def _get_skyfield():
 
 def _get_observer(lat=None, lon=None):
     _, eph = _get_skyfield()
-    use_lat = lat if lat is not None else LATITUDE
-    use_lon = lon if lon is not None else LONGITUDE
-    observer_location = wgs84.latlon(use_lat * N, abs(use_lon) * W, elevation_m=ELEVATION_M)
+    use_lat = float(lat if lat is not None else LATITUDE)
+    use_lon = float(lon if lon is not None else LONGITUDE)
+    observer_location = wgs84.latlon(use_lat, use_lon, elevation_m=ELEVATION_M)
     return eph["earth"] + observer_location, observer_location
 
 

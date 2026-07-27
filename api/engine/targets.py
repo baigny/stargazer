@@ -21,6 +21,9 @@ def _targets_cache_key(lat, lon, constellation, bortle):
 
 def get_visible_targets(dt: Optional[datetime] = None, lat=None, lon=None, constellation: str = "Sco", bortle: Optional[int] = None) -> list[dict]:
     """Return targets for a specific constellation with current altitude/visibility."""
+    if bortle is None and lat is not None and lon is not None:
+        from .bortle import get_bortle_class
+        bortle = get_bortle_class(lat, lon)
     key = _targets_cache_key(lat, lon, constellation, bortle)
     now = _time.monotonic()
     cached = _targets_cache.get(key)
