@@ -2227,7 +2227,7 @@ function renderTargetGrid(targets, liveMap, typeFilter = 'all', equipFilter = 'a
     }
 
     return `
-      <div class="target-card ${visibleNow ? 'visible-now' : ''} ${isBlocked ? 'blocked-horizon' : ''}" data-type="${t.type}" style="width: 100%; box-sizing: border-box;">
+      <div class="target-card ${visibleNow ? 'visible-now' : ''} ${isBlocked ? 'blocked-horizon' : ''} ${!visibleNow && !isBlocked ? 'tier-inactive' : ''}" data-type="${t.type}" style="width: 100%; box-sizing: border-box;">
         <div class="tc-header">
           <span class="tc-emoji">${t.emoji}</span>
           <div>
