@@ -27,10 +27,15 @@ def get_visible_targets(dt: Optional[datetime] = None, lat=None, lon=None, const
     if cached and now - cached["ts"] < _TARGETS_TTL:
         return cached["data"]
 
-    ts, _ = _get_skyfield()
+    ts, eph = _get_skyfield()
     observer, _ = _get_observer(lat=lat, lon=lon)
     now_dt = dt or now_local(lat=lat, lon=lon)
     t = _sf_time(now_dt)
+
+    # Check daytime (civil twilight ending at -6 deg altitude)
+    sun = eph["sun"]
+    alt_sun, _, _ = observer.at(t).observe(sun).apparent().altaz()
+    is_daytime = bool(alt_sun.degrees > -6)
 
     results = []
     all_targets = SCORPIUS_TARGETS + NEARBY_TARGETS + OTHER_TARGETS
@@ -46,7 +51,7 @@ def get_visible_targets(dt: Optional[datetime] = None, lat=None, lon=None, const
         astrometric = observer.at(t).observe(star)
         alt, az, _ = astrometric.apparent().altaz()
 
-        visible = bool(alt.degrees > MIN_ALTITUDE_DEG)
+        visible = bool(alt.degrees > MIN_ALTITUDE_DEG and not is_daytime)
         mag = target.get("magnitude")
         if mag is None:
             mag = 99
@@ -83,6 +88,7 @@ def get_visible_targets(dt: Optional[datetime] = None, lat=None, lon=None, const
             "visible": visible,
             "observable": observable,
             "in_fov": bool(observable and alt.degrees > 10),
+            "is_daytime": is_daytime,
         })
         results.append(result)
 

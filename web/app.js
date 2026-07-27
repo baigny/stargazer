@@ -2167,7 +2167,7 @@ function renderTargetGrid(targets, liveMap, typeFilter = 'all', equipFilter = 'a
     let visTabMatch = true;
     if (currentConstellation === 'Visible') {
       const live = liveMap[t.id] || {};
-      visTabMatch = live.visible === true || live.in_fov === true || (live.altitude_deg != null && live.altitude_deg > 0);
+      visTabMatch = (live.visible === true || live.in_fov === true || (live.altitude_deg != null && live.altitude_deg > 10)) && !live.is_daytime;
     }
     
     return typeMatch && equipMatch && nameMatch && visTabMatch;
@@ -2187,12 +2187,23 @@ function renderTargetGrid(targets, liveMap, typeFilter = 'all', equipFilter = 'a
 
   // 4. Map the visible slice into HTML layout strings
   if (displayedTargets.length === 0) {
-    grid.innerHTML = `<div style="padding: 30px; text-align: center; color: var(--text-dim); width: 100%; grid-column: 1 / -1;">No prominent deep-sky targets cataloged for this constellation yet, or none match your current filters. Try selecting a different constellation above!</div>`;
+    const anyDaytime = Object.values(liveMap).some(l => l && l.is_daytime === true);
+    if (currentConstellation === 'Visible' && anyDaytime) {
+      grid.innerHTML = `<div style="padding: 40px 20px; text-align: center; color: var(--text-dim); width: 100%; grid-column: 1 / -1; background: rgba(251, 191, 36, 0.05); border: 1px solid rgba(251, 191, 36, 0.2); border-radius: 12px;">
+        <div style="font-size: 2.2rem; margin-bottom: 12px;">☀️ Broad Daylight Sky</div>
+        <div style="font-size: 1.1rem; color: #fbbf24; font-weight: bold; margin-bottom: 8px;">It is currently daytime at your observing location!</div>
+        <div style="font-size: 0.95rem; max-width: 580px; margin: 0 auto; line-height: 1.6; color: var(--text-primary);">Bright sunlight scatters across the atmosphere, washing out deep-sky nebulae, star clusters, and faint stars. While many targets are geometrically above your horizon right now, they cannot be observed until dusk. Try using the <strong>Plan My Night</strong> timeline below to schedule your targets for tonight!</div>
+      </div>`;
+    } else {
+      grid.innerHTML = `<div style="padding: 30px; text-align: center; color: var(--text-dim); width: 100%; grid-column: 1 / -1;">No prominent deep-sky targets cataloged for this constellation yet, or none match your current filters. Try selecting a different constellation above!</div>`;
+    }
   } else {
     grid.innerHTML = displayedTargets.map(t => {
       try {
         const live = liveMap[t.id] || {};
-        const visibleNow = live.in_fov === true;
+        const isDaytime = live.is_daytime === true;
+        const aboveHorizon = (live.altitude_deg != null ? live.altitude_deg : (t.altitude_deg || 0)) > 0;
+        const visibleNow = (live.in_fov === true || live.visible === true) && !isDaytime;
         const compassDir = live.azimuth_deg != null ? (window.getCompassDirection ? window.getCompassDirection(live.azimuth_deg) : (live.direction || '')) : (live.direction || '');
         const altText = live.altitude_deg != null
           ? `Alt: ${live.altitude_deg}° • Az: ${live.azimuth_deg != null ? Math.round(live.azimuth_deg) + '° (' + compassDir + ')' : compassDir}`
@@ -2240,7 +2251,8 @@ function renderTargetGrid(targets, liveMap, typeFilter = 'all', equipFilter = 'a
           <span class="tc-eyepiece">🔭 ${t.eyepiece_rec || ''}</span>
           ${altText ? `<span class="tc-altitude">${altText}</span>` : ''}
           ${visibleNow ? '<span class="tc-visible-now"><span style="width:6px;height:6px;border-radius:50%;background:#22c55e;display:inline-block"></span> In view now</span>' : ''}
-          ${!visibleNow ? '<span class="tc-visible-now" style="background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3);"><span style="width:6px;height:6px;border-radius:50%;background:#ef4444;display:inline-block"></span> Below Horizon</span>' : ''}
+          ${!visibleNow && isDaytime && aboveHorizon ? '<span class="tc-visible-now" style="background: rgba(251, 191, 36, 0.15); color: #fbbf24; border: 1px solid rgba(251, 191, 36, 0.3);" title="Object is above horizon but washed out by daylight"><span style="width:6px;height:6px;border-radius:50%;background:#fbbf24;display:inline-block"></span> ☀️ Daylight (Sunlit Sky)</span>' : ''}
+          ${!visibleNow && (!isDaytime || !aboveHorizon) ? '<span class="tc-visible-now" style="background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3);"><span style="width:6px;height:6px;border-radius:50%;background:#ef4444;display:inline-block"></span> Below Horizon</span>' : ''}
         </div>
       </div>
       `;
