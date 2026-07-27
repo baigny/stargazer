@@ -2282,7 +2282,7 @@ function renderTargetGrid(targets, liveMap, typeFilter = 'all', equipFilter = 'a
     } else {
       loadMoreBtn.onclick = () => {
         window.targetDisplayedCount = (window.targetDisplayedCount || 12) + 12;
-        renderTargetGrid(targets, liveMap, filter);
+        renderTargetGrid(targets, liveMap, typeFilter, equipFilter);
       };
     }
   }
