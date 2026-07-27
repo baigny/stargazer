@@ -1962,6 +1962,23 @@ async function loadConstellations() {
       });
       tabsContainer.appendChild(visTab);
 
+      // Pinned special tab for "All Constellations (Full DB)"
+      const allTab = document.createElement('button');
+      allTab.className = `const-tab ${currentConstellation === 'All' ? 'active' : ''}`;
+      allTab.dataset.const = 'All';
+      allTab.style.cssText = 'background: rgba(168, 85, 247, 0.15); border: 1px solid #a855f7; color: #d8b4fe; font-weight: bold; padding: 4px 10px; border-radius: 6px; cursor: pointer;';
+      allTab.innerHTML = '🌌 All Constellations (Full DB)';
+      allTab.addEventListener('click', (e) => {
+        document.querySelectorAll('.const-tab').forEach(b => b.classList.remove('active'));
+        allTab.classList.add('active');
+        currentConstellation = 'All';
+        localStorage.setItem('sg_constellation', currentConstellation);
+        window.targetDisplayedCount = 24;
+        document.getElementById('target-db-title').textContent = '🌌 All Curated Targets (Full Database)';
+        loadTargets();
+      });
+      tabsContainer.appendChild(allTab);
+
       const allConst = [...data.constellations].sort((a, b) => a.name.localeCompare(b.name));
       allConst.forEach(c => {
         const tab = document.createElement('button');
@@ -3124,15 +3141,16 @@ async function init() {
     });
   }
 
-  // Refresh live data every 10 minutes
+  // Refresh live data and targets every 60 seconds dynamically
   setInterval(async () => {
     await loadTonightReport();
+    await loadTargets();
     await loadISS();
     await loadActiveConstellation(currentConstellation);
     await loadSpaceWeather();
     // Re-render any new Lucide icons injected by data loads
     if (window.lucide) lucide.createIcons();
-  }, 10 * 60 * 1000);
+  }, 60 * 1000);
 
   // --- Register Service Worker for PWA ---
   if ('serviceWorker' in navigator) {
