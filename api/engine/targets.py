@@ -95,6 +95,9 @@ def get_visible_targets(dt: Optional[datetime] = None, lat=None, lon=None, const
         })
         results.append(result)
 
-    results.sort(key=lambda x: (-x["altitude_deg"]))
+    if constellation.lower() in ["all", "*"]:
+        results.sort(key=lambda x: (x.get("constellation", ""), x.get("name", x.get("id", ""))))
+    else:
+        results.sort(key=lambda x: (-x["altitude_deg"]))
     _targets_cache[key] = {"data": results, "ts": now}
     return results

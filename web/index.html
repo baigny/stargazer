@@ -626,20 +626,49 @@
             </div>
           </div>
         </div>
-        <div class="card-body" style="padding: 0; overflow: hidden; border-radius: 0 0 12px 12px; height: 320px; position: relative; background-image: linear-gradient(to right, rgba(148, 163, 184, 0.25) 0%, rgba(148, 163, 184, 0.25) 20%, rgba(100, 116, 139, 0.25) 20%, rgba(100, 116, 139, 0.25) 40%, rgba(71, 85, 105, 0.25) 40%, rgba(71, 85, 105, 0.25) 60%, rgba(51, 65, 85, 0.25) 60%, rgba(51, 65, 85, 0.25) 80%, rgba(15, 23, 42, 0.25) 80%, rgba(15, 23, 42, 0.25) 100%), url('./assets/bortle_scale_bg.png'); background-size: cover; background-position: center; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; border: 1px solid rgba(255, 255, 255, 0.03);">
+        <div class="card-body" style="padding: 0; overflow: hidden; border-radius: 0 0 12px 12px; min-height: 320px; height: auto; position: relative; background-image: linear-gradient(to right, rgba(148, 163, 184, 0.25) 0%, rgba(148, 163, 184, 0.25) 20%, rgba(100, 116, 139, 0.25) 20%, rgba(100, 116, 139, 0.25) 40%, rgba(71, 85, 105, 0.25) 40%, rgba(71, 85, 105, 0.25) 60%, rgba(51, 65, 85, 0.25) 60%, rgba(51, 65, 85, 0.25) 80%, rgba(15, 23, 42, 0.25) 80%, rgba(15, 23, 42, 0.25) 100%), url('./assets/bortle_scale_bg.png'); background-size: cover; background-position: center; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; border: 1px solid rgba(255, 255, 255, 0.03);">
           <!-- Map Grid/Glow Styling -->
           <div style="position: absolute; inset: 0; opacity: 0.15; background-image: radial-gradient(rgba(59, 130, 246, 0.3) 1px, transparent 0), radial-gradient(rgba(59, 130, 246, 0.3) 1.5px, transparent 0); background-size: 20px 20px; background-position: 0 0, 10px 10px; pointer-events: none;"></div>
           <div style="position: absolute; width: 150px; height: 150px; border-radius: 50%; background: radial-gradient(circle, rgba(239, 68, 68, 0.15) 0%, transparent 70%); filter: blur(10px); pointer-events: none;"></div>
           
-          <div style="z-index: 2; padding: 20px; max-width: 360px;">
-            <i data-lucide="map" style="width: 48px; height: 48px; color: #3b82f6; margin-bottom: 15px; opacity: 0.85; margin-left: auto; margin-right: auto; display: block;"></i>
-            <h3 style="margin: 0 0 10px 0; font-size: 1.1rem; color: #fff;">Explore Light Pollution Near You</h3>
-            <p style="font-size: 0.85rem; color: var(--text-dim); margin: 0 0 20px 0; line-height: 1.4;">
+          <div style="z-index: 2; padding: 25px 20px; width: 100%; max-width: 440px; box-sizing: border-box;">
+            <i data-lucide="map" style="width: 42px; height: 42px; color: #3b82f6; margin-bottom: 12px; opacity: 0.85; margin-left: auto; margin-right: auto; display: block;"></i>
+            <h3 style="margin: 0 0 8px 0; font-size: 1.1rem; color: #fff;">Explore Light Pollution Near You</h3>
+            <p style="font-size: 0.85rem; color: var(--text-dim); margin: 0 0 15px 0; line-height: 1.4;">
               Open the interactive light pollution map centered on your selected coordinates to analyze local Bortle scale class and sky glow.
             </p>
-            <a id="lp-map-link" href="https://lightpollutionmap.app/" target="_blank" class="btn btn-primary" style="padding: 10px 20px; font-size: 0.9rem; text-decoration: none; display: inline-flex; align-items: center; gap: 8px; background: #3b82f6; color: #fff; border-radius: 6px; font-weight: 600;">
+            <a id="lp-map-link" href="https://lightpollutionmap.app/" target="_blank" class="btn btn-primary" style="padding: 8px 18px; font-size: 0.85rem; text-decoration: none; display: inline-flex; align-items: center; gap: 8px; background: #3b82f6; color: #fff; border-radius: 6px; font-weight: 600;">
               Open Interactive Map <i data-lucide="external-link" style="width:14px;height:14px;"></i>
             </a>
+
+            <!-- ── Interactive Bortle Observability Explorer ── -->
+            <div style="margin-top: 22px; width: 100%; border-top: 1px solid rgba(255,255,255,0.15); padding-top: 16px; text-align: left; background: rgba(15, 23, 42, 0.75); padding: 16px; border-radius: 10px; border: 1px solid rgba(59, 130, 246, 0.3); backdrop-filter: blur(8px); box-shadow: 0 8px 32px rgba(0,0,0,0.3);">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 8px;">
+                <span style="font-size: 0.85rem; font-weight: bold; color: #fff; display: flex; align-items: center; gap: 6px;">
+                  ✨ Bortle Sky Capability Guide
+                </span>
+                <select id="bortle-explorer-select" style="background: rgba(15,23,42,0.9); color: #fff; border: 1px solid #3b82f6; border-radius: 6px; padding: 4px 8px; font-size: 0.8rem; cursor: pointer; outline: none; font-weight: 600;">
+                  <option value="1">Class 1: Excellent dark-sky site</option>
+                  <option value="2">Class 2: Typical truly dark site</option>
+                  <option value="3">Class 3: Rural sky</option>
+                  <option value="4">Class 4: Rural/suburban transition</option>
+                  <option value="5">Class 5: Suburban sky</option>
+                  <option value="6" selected>Class 6: Bright suburban sky</option>
+                  <option value="7">Class 7: Suburban/urban transition</option>
+                  <option value="8">Class 8: City sky</option>
+                  <option value="9">Class 9: Inner-city sky</option>
+                </select>
+              </div>
+              <div id="bortle-explorer-desc" style="font-size: 0.8rem; color: #e2e8f0; background: rgba(0, 0, 0, 0.4); border-left: 3px solid #3b82f6; padding: 10px 12px; border-radius: 4px; line-height: 1.45; margin-bottom: 12px; min-height: 50px;">
+                <strong>Class 6 (Bright Suburban):</strong> Milky Way is only visible near zenith on clear nights. M31 is barely visible to naked eye. Best for star clusters, planets, and bright nebulae.
+              </div>
+              <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.75rem; color: #94a3b8; margin-bottom: 12px;">
+                <span>🔭 <strong style="color:#cbd5e1;">Amateur Equipment:</strong> <span id="bortle-explorer-equip">Telescopes & Binoculars recommended</span></span>
+              </div>
+              <button id="btn-filter-bortle-db" style="width: 100%; background: linear-gradient(135deg, #3b82f6, #6366f1); border: 1px solid rgba(255,255,255,0.2); color: #fff; font-weight: 700; padding: 8px 14px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);" onmouseover="this.style.filter='brightness(1.15)'" onmouseout="this.style.filter='none'">
+                🔭 Filter Target Database By This Bortle Scale
+              </button>
+            </div>
           </div>
         </div>
       </section>

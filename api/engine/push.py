@@ -13,8 +13,12 @@ from .cache import get_cache, set_cache, HAS_REDIS, redis_client
 
 logger = logging.getLogger(__name__)
 
-VAPID_PRIVATE_KEY = os.environ.get("VAPID_PRIVATE_KEY", "")
-VAPID_PUBLIC_KEY = os.environ.get("VAPID_PUBLIC_KEY", "")
+# Default VAPID keypair so web push alerts work out-of-the-box without env vars
+DEFAULT_VAPID_PRIVATE = "PMh9GcAawEMx1wPYoYud6OIIT2NV6795mMPKN89-G9o"
+DEFAULT_VAPID_PUBLIC = "BFKyECWiLn3HYytv_WTcKzhflmgps0K8MosF9JQOmNWwn_UWLJwVzM7XrxuMUNuSy6ZZeRvzXCOE4v9gkqdXHww"
+
+VAPID_PRIVATE_KEY = os.environ.get("VAPID_PRIVATE_KEY", "") or DEFAULT_VAPID_PRIVATE
+VAPID_PUBLIC_KEY = os.environ.get("VAPID_PUBLIC_KEY", "") or DEFAULT_VAPID_PUBLIC
 VAPID_ADMIN_EMAIL = os.environ.get("VAPID_ADMIN_EMAIL", "admin@stargazer.local")
 
 # In-memory fallback when Redis is not available

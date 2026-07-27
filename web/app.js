@@ -1072,8 +1072,11 @@ function updateHeroStats(data) {
     if (!window.currentBortle) {
       const selectBortle = document.getElementById('select-bortle');
       if (selectBortle) {
-        selectBortle.value = data.telescope.bortle.toString();
+        selectBortle.value = "auto";
       }
+    }
+    if (window.updateBortleExplorerDesc) {
+      window.updateBortleExplorerDesc(window.currentBortle || data.telescope.bortle.toString());
     }
   }
 }
@@ -2091,7 +2094,14 @@ window.filterTargetByName = function(val) {
 };
 
 async function loadTargets() {
-  await fetchAndRender(`/targets?constellation=${currentConstellation}`, (liveData) => {
+  let url = `/targets?constellation=${currentConstellation}`;
+  if (currentLat != null && currentLon != null) {
+    url += `&lat=${currentLat}&lon=${currentLon}`;
+  }
+  if (window.currentBortle != null) {
+    url += `&bortle=${window.currentBortle}`;
+  }
+  await fetchAndRender(url, (liveData) => {
     if (!liveData || !liveData.targets) return;
     const targets = liveData.targets;
 
@@ -2193,9 +2203,20 @@ function renderTargetGrid(targets, liveMap, typeFilter = 'all', equipFilter = 'a
 
   if (currentConstellation === 'Visible') {
     filtered.sort((a, b) => {
+      // Prioritize deep sky objects (galaxies, nebulae, clusters) over simple stars
+      const isStarA = (a.type && a.type.toLowerCase() === 'star') ? 1 : 0;
+      const isStarB = (b.type && b.type.toLowerCase() === 'star') ? 1 : 0;
+      if (isStarA !== isStarB) return isStarA - isStarB;
       const altA = (liveMap[a.id] && liveMap[a.id].altitude_deg) != null ? liveMap[a.id].altitude_deg : -90;
       const altB = (liveMap[b.id] && liveMap[b.id].altitude_deg) != null ? liveMap[b.id].altitude_deg : -90;
       return altB - altA;
+    });
+  } else if (currentConstellation === 'All') {
+    filtered.sort((a, b) => {
+      const constA = a.constellation || '';
+      const constB = b.constellation || '';
+      if (constA !== constB) return constA.localeCompare(constB);
+      return (a.name || a.id || '').localeCompare(b.name || b.id || '');
     });
   }
 
@@ -2436,6 +2457,53 @@ function initLocationUI() {
         localStorage.setItem('stargazer_bortle', window.currentBortle);
       }
       // Reload targets and tonight report
+      loadTonightReport();
+      loadTargets();
+    });
+  }
+
+  window.updateBortleExplorerDesc = function(val) {
+    const descEl = document.getElementById('bortle-explorer-desc');
+    const equipEl = document.getElementById('bortle-explorer-equip');
+    const selectEl = document.getElementById('bortle-explorer-select');
+    if (selectEl && val) selectEl.value = val.toString();
+    
+    const info = {
+      "1": { desc: "<strong>Class 1 (Excellent Dark Sky):</strong> Zodiacal light, gegenschein, and Scorpius-Sagittarius Milky Way cast obvious shadows. M31 displays spiral arms to naked eye.", equip: "Naked Eye, Binoculars, All Telescopes (Ultimate Deep-Sky)" },
+      "2": { desc: "<strong>Class 2 (Typical Dark Sky):</strong> Airglow is visible near horizon. Milky Way is highly detailed. Globular clusters like M13 and M22 are visible to naked eye.", equip: "Naked Eye, Binoculars, All Telescopes" },
+      "3": { desc: "<strong>Class 3 (Rural Sky):</strong> Milky Way still appears complex with dark rifts. M31 and M33 are easily visible with naked eye. Great for all deep-sky objects.", equip: "Binoculars, All Telescopes, DSLR Astro-imaging" },
+      "4": { desc: "<strong>Class 4 (Rural/Suburban Transition):</strong> Light pollution domes visible in several directions. Milky Way well above horizon. M31 is easily visible; M33 is difficult.", equip: "Binoculars, Small to Medium Telescopes" },
+      "5": { desc: "<strong>Class 5 (Suburban Sky):</strong> Milky Way is weak near horizon and washed out by light domes. Andromeda (M31) is a faint patch to naked eye. Telescopes show nebulae well.", equip: "Binoculars (bright targets), 4\"+ Telescopes" },
+      "6": { desc: "<strong>Class 6 (Bright Suburban):</strong> Milky Way is only visible near zenith on clear nights. M31 is barely visible to naked eye. Best for star clusters, planets, and bright nebulae.", equip: "Telescopes (6\"+ for deep sky), Binoculars for open clusters" },
+      "7": { desc: "<strong>Class 7 (Suburban/Urban Transition):</strong> Entire sky background has a grayish-white hue. Milky Way is completely invisible. M31 and M44 require binoculars.", equip: "Telescopes with narrowband/LP filters, Seestar S50" },
+      "8": { desc: "<strong>Class 8 (City Sky):</strong> Sky glows white or orange. Only bright stars (Mag 2-3) and planets are naked-eye. Scopes limited to planets, moon, double stars, and bright cores.", equip: "Planetary/Lunar scopes, Seestar S50 / Smart Scopes" },
+      "9": { desc: "<strong>Class 9 (Inner-City Sky):</strong> Entire sky is brightly lit. Only the Moon, major planets, and around 20-30 of the brightest stars are visible. Requires GoTo scopes or Seestar imaging.", equip: "Smart Scopes (Seestar/Vespera), Lunar/Planetary scopes" }
+    };
+
+    const item = info[val] || info["6"];
+    if (descEl) descEl.innerHTML = item.desc;
+    if (equipEl) equipEl.textContent = item.equip;
+  };
+
+  const bortleExpSelect = document.getElementById('bortle-explorer-select');
+  if (bortleExpSelect) {
+    bortleExpSelect.addEventListener('change', (e) => {
+      window.updateBortleExplorerDesc(e.target.value);
+    });
+  }
+
+  const btnFilterBortleDb = document.getElementById('btn-filter-bortle-db');
+  if (btnFilterBortleDb) {
+    btnFilterBortleDb.addEventListener('click', () => {
+      const val = bortleExpSelect ? bortleExpSelect.value : "6";
+      window.currentBortle = val;
+      localStorage.setItem('stargazer_bortle', window.currentBortle);
+      const selectBortle = document.getElementById('select-bortle');
+      if (selectBortle) selectBortle.value = val;
+      
+      const targetsCard = document.getElementById('card-targets');
+      if (targetsCard) targetsCard.scrollIntoView({ behavior: 'smooth' });
+      
       loadTonightReport();
       loadTargets();
     });
