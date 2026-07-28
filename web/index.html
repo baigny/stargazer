@@ -31,12 +31,7 @@
 
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap" />
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap" media="print" onload="this.media='all'" />
-  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap" /></noscript>
-  
-  <link rel="preload" as="image" href="assets/2k_sun.jpg" crossorigin="anonymous" />
-  <link rel="preload" as="image" href="assets/2k_earth_daymap.jpg" crossorigin="anonymous" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap" />
 
   <link rel="stylesheet" href="style.css?v=68" />
 
@@ -626,7 +621,7 @@
             </div>
           </div>
         </div>
-        <div class="card-body" style="padding: 0; overflow: hidden; border-radius: 0 0 12px 12px; min-height: 320px; height: auto; position: relative; background-image: linear-gradient(to right, rgba(148, 163, 184, 0.25) 0%, rgba(148, 163, 184, 0.25) 20%, rgba(100, 116, 139, 0.25) 20%, rgba(100, 116, 139, 0.25) 40%, rgba(71, 85, 105, 0.25) 40%, rgba(71, 85, 105, 0.25) 60%, rgba(51, 65, 85, 0.25) 60%, rgba(51, 65, 85, 0.25) 80%, rgba(15, 23, 42, 0.25) 80%, rgba(15, 23, 42, 0.25) 100%), url('./assets/bortle_scale_bg.png'); background-size: cover; background-position: center; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; border: 1px solid rgba(255, 255, 255, 0.03);">
+        <div class="card-body" style="padding: 0; overflow: hidden; border-radius: 0 0 12px 12px; min-height: 320px; height: auto; position: relative; background-image: linear-gradient(to right, rgba(148, 163, 184, 0.25) 0%, rgba(148, 163, 184, 0.25) 20%, rgba(100, 116, 139, 0.25) 20%, rgba(100, 116, 139, 0.25) 40%, rgba(71, 85, 105, 0.25) 40%, rgba(71, 85, 105, 0.25) 60%, rgba(51, 65, 85, 0.25) 60%, rgba(51, 65, 85, 0.25) 80%, rgba(15, 23, 42, 0.25) 80%, rgba(15, 23, 42, 0.25) 100%), url('./assets/bortle_scale_bg.webp'); background-size: cover; background-position: center; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; border: 1px solid rgba(255, 255, 255, 0.03);">
           <!-- Map Grid/Glow Styling -->
           <div style="position: absolute; inset: 0; opacity: 0.15; background-image: radial-gradient(rgba(59, 130, 246, 0.3) 1px, transparent 0), radial-gradient(rgba(59, 130, 246, 0.3) 1.5px, transparent 0); background-size: 20px 20px; background-position: 0 0, 10px 10px; pointer-events: none;"></div>
           <div style="position: absolute; width: 150px; height: 150px; border-radius: 50%; background: radial-gradient(circle, rgba(239, 68, 68, 0.15) 0%, transparent 70%); filter: blur(10px); pointer-events: none;"></div>
@@ -687,6 +682,7 @@
             src="https://clearoutside.com/forecast_image_large/40.126/-83.037/forecast.png"
             id="clearoutside-img"
             alt="Clear Outside astronomical weather forecast"
+            loading="lazy"
           />
         </div>
         <div class="weather-notes">
@@ -712,7 +708,7 @@
     </section>
 
     <!-- ── Aurora & Space Weather Card ── -->
-    <section class="card" id="card-space-weather" style="margin-bottom: 20px; background-image: linear-gradient(to bottom, rgba(15, 23, 42, 0.6), rgba(15, 23, 42, 0.95)), url('./assets/aurora_bg.png'); background-size: cover; background-position: center; border: 1px solid rgba(168, 85, 247, 0.2);">
+    <section class="card" id="card-space-weather" style="margin-bottom: 20px; background-image: linear-gradient(to bottom, rgba(15, 23, 42, 0.6), rgba(15, 23, 42, 0.95)), url('./assets/aurora_bg.webp'); background-size: cover; background-position: center; border: 1px solid rgba(168, 85, 247, 0.2);">
       <div class="card-header" style="align-items: center;">
         <span class="card-icon" style="color: #a855f7;"><i data-lucide="zap"></i></span>
         <div>
@@ -817,6 +813,13 @@
       <div class="targets-scope-note">
         🔭 Visibility depends on local sky conditions, light pollution, and your equipment. 
         This database highlights the most prominent targets for amateur stargazers and beginners.
+      </div>
+      <div id="active-bortle-banner" style="display: none; background: linear-gradient(135deg, rgba(59, 130, 246, 0.25), rgba(99, 102, 241, 0.25)); border: 1px solid #3b82f6; color: #fff; padding: 12px 20px; border-radius: 8px; margin: 15px 24px 5px; font-size: 0.9rem; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.2);">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="font-size: 1.1rem;">✨</span>
+          <span>Filtering by targets observable under <strong>Bortle Class <span id="bortle-banner-val">6</span></strong> (<span id="bortle-banner-desc">Bright suburban sky</span>).</span>
+        </div>
+        <button id="btn-clear-bortle-filter" style="background: rgba(239, 68, 68, 0.85); border: 1px solid #ef4444; color: #fff; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 0.8rem; font-weight: 700; transition: all 0.2s; display: flex; align-items: center; gap: 6px;">✖ Show All Targets</button>
       </div>
       <div class="target-grid-db" id="target-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; padding: 20px 24px; width: 100%; box-sizing: border-box;">
         <!-- Populated by JS -->

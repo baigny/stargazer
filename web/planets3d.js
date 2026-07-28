@@ -1,5 +1,5 @@
 // planets3d.js — Three.js textured planets v10
-// Mirrors moon3d.js pattern: THREE.TextureLoader from /assets/*.jpg
+// Mirrors moon3d.js pattern: THREE.TextureLoader from /assets/*.webp
 // Procedural canvas fallback for planets without texture files (earth, sun, pluto)
 // Shared 12fps throttled loop + IntersectionObserver per card
 
@@ -9,15 +9,15 @@
 /* ── Planet configs ─────────────────────────────────────────────────────── */
 const CFG = {
   sun:     { tilt:  7.25, speed: 0.48, bumpScale: 0.002 },
-  mercury: { tilt:  0.03, speed: 0.017, tex: '/assets/mercury.jpg', bumpScale: 0.015 },
-  venus:   { tilt: 177.4, speed: 0.004, tex: '/assets/venus.jpg', bumpScale: 0.006 },
+  mercury: { tilt:  0.03, speed: 0.017, tex: '/assets/mercury.webp', bumpScale: 0.015 },
+  venus:   { tilt: 177.4, speed: 0.004, tex: '/assets/venus.webp', bumpScale: 0.006 },
   earth:   { tilt:  23.4, speed: 0.50, bumpScale: 0.008 },   // no texture file yet — procedural
-  mars:    { tilt:  25.2, speed: 0.24, tex: '/assets/mars.jpg', bumpScale: 0.012 },
-  jupiter: { tilt:   3.1, speed: 0.45, tex: '/assets/jupiter.jpg', bumpScale: 0.003 },
-  saturn:  { tilt:  26.7, speed: 0.38, tex: '/assets/saturn.jpg', hasRing: true, ringTex: '/assets/saturn_ring_color.jpg', bumpScale: 0.003 },
-  uranus:  { tilt:  97.8, speed: 0.23, tex: '/assets/uranus.jpg', bumpScale: 0.002 },
-  neptune: { tilt:  28.3, speed: 0.15, tex: '/assets/neptune.jpg', bumpScale: 0.003 },
-  moon:    { tilt:   1.5, speed: 0.036, tex: '/assets/moon_texture.jpg', bumpScale: 0.01 },
+  mars:    { tilt:  25.2, speed: 0.24, tex: '/assets/mars.webp', bumpScale: 0.012 },
+  jupiter: { tilt:   3.1, speed: 0.45, tex: '/assets/jupiter.webp', bumpScale: 0.003 },
+  saturn:  { tilt:  26.7, speed: 0.38, tex: '/assets/saturn.webp', hasRing: true, ringTex: '/assets/saturn_ring_color.webp', bumpScale: 0.003 },
+  uranus:  { tilt:  97.8, speed: 0.23, tex: '/assets/uranus.webp', bumpScale: 0.002 },
+  neptune: { tilt:  28.3, speed: 0.15, tex: '/assets/neptune.webp', bumpScale: 0.003 },
+  moon:    { tilt:   1.5, speed: 0.036, tex: '/assets/moon_texture.webp', bumpScale: 0.01 },
   pluto:   { tilt: 122.5, speed: 0.006, bumpScale: 0.01 },   // no texture file yet — procedural
 };
 

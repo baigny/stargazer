@@ -2198,7 +2198,14 @@ function renderTargetGrid(targets, liveMap, typeFilter = 'all', equipFilter = 'a
       visTabMatch = (live.visible === true || live.in_fov === true || (live.altitude_deg != null && live.altitude_deg > 10)) && !live.is_daytime;
     }
     
-    return typeMatch && equipMatch && nameMatch && visTabMatch;
+    let bortleMatch = true;
+    if (window.activeBortleFilter) {
+      const live = liveMap[t.id] || {};
+      const bMin = live.bortle_min != null ? live.bortle_min : (t.bortle_min != null ? t.bortle_min : 9);
+      bortleMatch = parseInt(window.activeBortleFilter) <= bMin;
+    }
+
+    return typeMatch && equipMatch && nameMatch && visTabMatch && bortleMatch;
   });
 
   if (currentConstellation === 'Visible') {
@@ -2265,6 +2272,13 @@ function renderTargetGrid(targets, liveMap, typeFilter = 'all', equipFilter = 'a
       }
     }
 
+    const bMin = live.bortle_min != null ? live.bortle_min : (t.bortle_min != null ? t.bortle_min : 9);
+    const curB = parseInt(window.activeBortleFilter || window.currentBortle || (window.activeLoc && window.activeLoc.bortle ? window.activeLoc.bortle : 6));
+    const isBortleOk = curB <= bMin;
+    const bortleBadge = isBortleOk
+      ? `<span class="tc-visible-now" style="background: rgba(34, 197, 94, 0.15); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.3);" title="Observable under Bortle Class ${curB} skies">✨ Bortle ${curB} Observable</span>`
+      : `<span class="tc-visible-now" style="background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3);" title="Too faint for Bortle Class ${curB}. Requires darker sky (Bortle ${bMin} or lower)">⚠️ Needs Bortle ≤ ${bMin} Sky</span>`;
+
     return `
       <div class="target-card ${visibleNow ? 'visible-now' : ''} ${isBlocked ? 'blocked-horizon' : ''} ${!visibleNow && !isBlocked ? 'tier-inactive' : ''}" data-type="${t.type}" style="width: 100%; box-sizing: border-box;">
         <div class="tc-header">
@@ -2276,7 +2290,7 @@ function renderTargetGrid(targets, liveMap, typeFilter = 'all', equipFilter = 'a
           </div>
           <span class="tc-mag">mag ${t.magnitude}</span>
         </div>
-        ${['m1', 'm31', 'm4', 'm42', 'm7', 'm8', 'omega_cen', 'pleiades'].includes(t.id) ? `<img class="target-thumb" src="/assets/targets/${t.id}.jpg" alt="${tName}">` : ''}
+        ${['m1', 'm31', 'm4', 'm42', 'm7', 'm8', 'omega_cen', 'pleiades'].includes(t.id) ? `<img class="target-thumb" src="/assets/targets/${t.id}.webp" alt="${tName}" loading="lazy">` : ''}
         <div class="tc-desc">${tDesc}</div>
         ${t.horizon_note ? `<div class="tc-horizon-note">${t.horizon_note}</div>` : ''}
         <div class="tc-footer" style="flex-wrap: wrap; gap: 8px;">
@@ -2286,6 +2300,7 @@ function renderTargetGrid(targets, liveMap, typeFilter = 'all', equipFilter = 'a
             <button class="btn-fov" data-gallery-id="${t.id}" data-gallery-name="${escapeForSingleQuotedString(t.name)}" style="background: rgba(34, 197, 94, 0.15); border-color: rgba(34, 197, 94, 0.3); color: #86efac;">${(window.i18n[currentLang] || window.i18n['en']).btn_gallery_share || 'Gallery & Share 📷'}</button>
           </div>
           <span class="tc-equipment">${t.equipment || '🔭 Telescope'}</span>
+          ${bortleBadge}
           ${(t.difficulty && t.difficulty.toUpperCase().replace('_', ' ') !== 'NAKED EYE') ? `<span class="tc-difficulty ${t.difficulty.replace(' ', '_')}">${t.difficulty.replace('_', ' ')}</span>` : ''}
           <span class="tc-eyepiece">🔭 ${t.eyepiece_rec || ''}</span>
           ${altText ? `<span class="tc-altitude">${altText}</span>` : ''}
@@ -2497,14 +2512,54 @@ function initLocationUI() {
     btnFilterBortleDb.addEventListener('click', () => {
       const val = bortleExpSelect ? bortleExpSelect.value : "6";
       window.currentBortle = val;
+      window.activeBortleFilter = val;
       localStorage.setItem('stargazer_bortle', window.currentBortle);
       const selectBortle = document.getElementById('select-bortle');
       if (selectBortle) selectBortle.value = val;
       
+      const banner = document.getElementById('active-bortle-banner');
+      const bannerVal = document.getElementById('bortle-banner-val');
+      const bannerDesc = document.getElementById('bortle-banner-desc');
+      if (banner) banner.style.display = 'flex';
+      if (bannerVal) bannerVal.textContent = val;
+      const shortDescs = {
+        "1": "Excellent Dark Sky",
+        "2": "Typical Dark Sky",
+        "3": "Rural Sky",
+        "4": "Rural/Suburban Transition",
+        "5": "Suburban Sky",
+        "6": "Bright Suburban",
+        "7": "Suburban/Urban Transition",
+        "8": "City Sky",
+        "9": "Inner-City Sky"
+      };
+      if (bannerDesc) bannerDesc.textContent = shortDescs[val] || `Class ${val} sky`;
+      
+      // Auto-switch to "Visible Now (My Sky)" tab so washed-out or below-horizon targets don't clutter
+      const visTabBtn = document.querySelector('.const-tab[data-const="Visible"]');
+      if (visTabBtn) {
+        document.querySelectorAll('.const-tab').forEach(b => b.classList.remove('active'));
+        visTabBtn.classList.add('active');
+        currentConstellation = 'Visible';
+        localStorage.setItem('sg_constellation', currentConstellation);
+        const titleEl = document.getElementById('target-db-title');
+        if (titleEl) titleEl.textContent = `🌟 All Targets Visible Now (Lat: ${currentLat ? Math.round(currentLat*100)/100 : 'N/A'}, Lon: ${currentLon ? Math.round(currentLon*100)/100 : 'N/A'})`;
+      }
+
       const targetsCard = document.getElementById('card-targets');
       if (targetsCard) targetsCard.scrollIntoView({ behavior: 'smooth' });
       
       loadTonightReport();
+      loadTargets();
+    });
+  }
+
+  const btnClearBortleFilter = document.getElementById('btn-clear-bortle-filter');
+  if (btnClearBortleFilter) {
+    btnClearBortleFilter.addEventListener('click', () => {
+      window.activeBortleFilter = null;
+      const banner = document.getElementById('active-bortle-banner');
+      if (banner) banner.style.display = 'none';
       loadTargets();
     });
   }
@@ -4171,8 +4226,9 @@ function renderNightPlan() {
       segment.style.textOverflow = 'ellipsis';
       segment.style.whiteSpace = 'nowrap';
       segment.style.padding = '0 4px';
-      segment.title = `${item.name} (${item.startTime} - ${item.endTime})`;
-      segment.textContent = item.name.split(' ')[0];
+      const nameStr = item.name || item.target || 'Target';
+      segment.title = `${nameStr} (${item.startTime || ''} - ${item.endTime || ''})`;
+      segment.textContent = nameStr.split(' ')[0];
       
       timelineBar.appendChild(segment);
     });

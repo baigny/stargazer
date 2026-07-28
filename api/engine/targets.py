@@ -61,7 +61,23 @@ def get_visible_targets(dt: Optional[datetime] = None, lat=None, lon=None, const
         in_limiting_mag = bool(mag <= LIMITING_MAG if mag != 99 else True)
         
         # Check light pollution requirement
-        target_bortle_min = target.get("bortle_min", 9)
+        target_bortle_min = target.get("bortle_min")
+        mag = target.get("magnitude", 99)
+        t_type = str(target.get("type", "")).lower()
+        if target_bortle_min == 1 and (mag <= 3 or "star" in t_type):
+            target_bortle_min = 9
+        elif target_bortle_min is None:
+            if "planet" in t_type or "moon" in t_type or "star" in t_type or mag <= 2.5:
+                target_bortle_min = 9
+            elif mag <= 4.5 or "open cluster" in t_type:
+                target_bortle_min = 7
+            elif mag <= 7.0 or "globular" in t_type or "nebula" in t_type or "galaxy" in t_type:
+                target_bortle_min = 6
+            elif mag <= 8.5:
+                target_bortle_min = 5
+            else:
+                target_bortle_min = 4
+
         bortle_ok = True
         if bortle is not None:
             # If user's sky is worse (higher number) than the target requires (lower number), it's washed out
@@ -90,6 +106,8 @@ def get_visible_targets(dt: Optional[datetime] = None, lat=None, lon=None, const
             "direction": _az_to_direction(az.degrees),
             "visible": visible,
             "observable": observable,
+            "bortle_ok": bortle_ok,
+            "bortle_min": target_bortle_min,
             "in_fov": bool(observable and alt.degrees > 10),
             "is_daytime": is_daytime,
         })

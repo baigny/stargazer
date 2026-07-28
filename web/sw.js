@@ -1,4 +1,4 @@
-const CACHE_NAME = 'stargazer-cache-v24';
+const CACHE_NAME = 'stargazer-cache-v25';
 const STATIC_ASSETS = [
   './',
   './index.html',
@@ -6,8 +6,9 @@ const STATIC_ASSETS = [
   './app.js',
   './manifest.json',
   './assets/ai_stargazer_mascot.png',
-  './assets/2k_sun.jpg',
-  './assets/2k_earth_daymap.jpg'
+  './assets/ai_stargazer_mascot.webp',
+  './assets/2k_sun.webp',
+  './assets/2k_earth_daymap.webp'
 ];
 
 self.addEventListener('install', (event) => {
