@@ -11,26 +11,23 @@ permissions:
 jobs:
   release:
     runs-on: ubuntu-latest
-    # Skip if the push was made by the bot itself (avoid infinite loop)
+    # Skip bot commits to avoid any loops
     if: "!contains(github.event.head_commit.message, '[skip ci]') && github.actor != 'github-actions[bot]'"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Set up git identity
+      - name: Compute next version from last tag
+        id: version
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
+          # Get the latest semver tag (e.g. v2.9.0 → 2.9.0)
+          LAST_TAG=$(git describe --tags --match "v*" --abbrev=0 2>/dev/null || echo "v0.0.0")
+          echo "Last tag: $LAST_TAG"
 
-      - name: Bump patch version in package.json
-        id: bump
-        run: |
-          CURRENT=$(jq -r .version package.json)
-          echo "Current version: $CURRENT"
-
+          # Strip leading 'v'
+          CURRENT=${LAST_TAG#v}
           MAJOR=$(echo "$CURRENT" | cut -d. -f1)
           MINOR=$(echo "$CURRENT" | cut -d. -f2)
           PATCH=$(echo "$CURRENT" | cut -d. -f3)
@@ -39,31 +36,24 @@ jobs:
 
           echo "New version: $NEW_VERSION"
           echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
-
-          jq --arg v "$NEW_VERSION" '.version = $v' package.json > package.json.tmp
-          mv package.json.tmp package.json
-
-      - name: Commit version bump
-        run: |
-          git add package.json
-          git commit -m "chore: bump version to v${{ env.NEW_VERSION }} [skip ci]"
-          git push origin main
+          echo "LAST_TAG=$LAST_TAG" >> $GITHUB_ENV
 
       - name: Generate changelog
         id: changelog
         run: |
-          LAST_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
-          if [ -z "$LAST_TAG" ]; then
+          if [ "${{ env.LAST_TAG }}" = "v0.0.0" ]; then
             LOG=$(git log --pretty=format:"%h %s (%an, %ad)" --date=short)
           else
-            LOG=$(git log --pretty=format:"%h %s (%an, %ad)" --date=short "$LAST_TAG"..HEAD)
+            LOG=$(git log --pretty=format:"%h %s (%an, %ad)" --date=short "${{ env.LAST_TAG }}"..HEAD)
           fi
           echo "log<<EOF" >> $GITHUB_OUTPUT
           echo "$LOG" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
-      - name: Create git tag
+      - name: Create and push git tag
         run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
           git tag -a "v${{ env.NEW_VERSION }}" -m "Release v${{ env.NEW_VERSION }}"
           git push origin "v${{ env.NEW_VERSION }}"
 
