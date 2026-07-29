@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import math
 import requests
@@ -20,7 +21,9 @@ from .skyfield import now_local
 
 
 def _call_ai_api(api_url, api_model, payload, auth_header, timeout_sec):
-    """Call an AI API and return the parsed response dict, or None on failure."""
+    """Call an AI API and return the parsed response dict, or None on failure.
+    Handles both standard JSON responses (Gemini) and SSE streaming (OpenWebUI).
+    """
     headers = {"Content-Type": "application/json"}
     if auth_header:
         headers["Authorization"] = f"Bearer {auth_header}"
@@ -30,10 +33,45 @@ def _call_ai_api(api_url, api_model, payload, auth_header, timeout_sec):
         headers["CF-Access-Client-Secret"] = CF_ACCESS_CLIENT_SECRET
     payload = payload.copy()
     payload["model"] = api_model
+    # Force stream=false; OpenWebUI may ignore it but we handle both cases
+    payload["stream"] = False
     resp = requests.post(api_url, json=payload, headers=headers, timeout=timeout_sec)
-
     resp.raise_for_status()
-    return resp.json()
+
+    content_type = resp.headers.get("content-type", "")
+    # Standard JSON response (Gemini, most APIs)
+    if "application/json" in content_type:
+        return resp.json()
+
+    # SSE streaming response (OpenWebUI ignores stream=false) — assemble chunks
+    full_content = ""
+    last_chunk = None
+    for line in resp.text.splitlines():
+        line = line.strip()
+        if not line.startswith("data:"):
+            continue
+        data_str = line[5:].strip()
+        if data_str == "[DONE]":
+            break
+        try:
+            chunk = json.loads(data_str)
+            delta = chunk.get("choices", [{}])[0].get("delta", {})
+            full_content += delta.get("content") or ""
+            last_chunk = chunk
+        except (json.JSONDecodeError, IndexError):
+            continue
+
+    if last_chunk is None:
+        return None
+
+    # Re-assemble into a standard non-streaming response shape
+    last_chunk["choices"] = [{
+        "index": 0,
+        "message": {"role": "assistant", "content": full_content},
+        "finish_reason": "stop"
+    }]
+    return last_chunk
+
 
 
 def _parse_ai_response(data):
