@@ -59,7 +59,7 @@ Getting started with amateur astronomy can be overwhelming. Commercial star char
 * **📱 Progressive Web App (PWA):** Install it directly to your home screen with offline caching.
 * **🔔 Native & Local Push Alerts:** Subscribe to native OS push notifications for ISS passes, auroras, and clearing skies. Also schedules local PWA browser alerts exactly when scheduled observing slots in your night plan begin!
 * **🌍 100% Internationalized:** Localized in English, Spanish, and Portuguese.
-* **🏎️ Lighthouse Optimized:** Performance optimized with lazy-loaded 3D WebGL scenes, compressed assets, and asynchronous CSS (Lighthouse scores: **84+ Performance, 96+ Accessibility**).
+* **🏎️ CI Performance Gated:** Lighthouse quality checks run in CI before deploy (with enforced performance/best-practices thresholds and accessibility warnings).
 
 ---
 
@@ -84,7 +84,15 @@ graph TD
 ### 2. Backend (`api/`)
 * Lightweight **FastAPI** Python service.
 * Runs inside Docker and scales automatically to zero on **Google Cloud Run** to minimize hosting costs.
-* Fully automated CI/CD pipeline deploying via **GitHub Actions** on every push to `main`.
+* Unified enterprise CI/CD via **GitHub Actions** using a single pipeline with validation, deploy, release, rollback, and manual dry-run modes.
+
+### 3. CI/CD (`.github/workflows/pipeline.yml`)
+* **Single source of truth workflow:** `Stargazer Enterprise Pipeline`.
+* **Pre-deploy quality gates:** JS syntax, HTML critical IDs, Python lint/security, Playwright smoke tests, Lighthouse CI.
+* **Safe deploy flow:** Deploy runs only after validation, then performs post-deploy `/health` checks with retries.
+* **Release automation:** Auto patch-tag release on successful `main` pipeline runs; manual release supports explicit version or auto increment.
+* **Rollback support:** Manual rollback creates a PR from a validated release tag.
+* **Dry-run mode:** Manual dispatch can preview deploy/release actions without mutating production.
 
 ---
 
@@ -104,7 +112,16 @@ uvicorn main:app --host 0.0.0.0 --port 8181 --reload
 The API docs will be available at `http://localhost:8181/docs`.
 
 ### 2. Run the Frontend
-Serve the frontend using a basic local web server:
+Run the local development proxy (recommended):
+
+```bash
+cd /path/to/stargazer
+node dev-server.js
+```
+
+This serves the frontend at `http://localhost:8080` and proxies `/api/*` to `http://localhost:8181`.
+
+Alternative static-only frontend server:
 
 ```bash
 cd web

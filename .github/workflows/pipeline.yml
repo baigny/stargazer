@@ -1,0 +1,439 @@
+name: Stargazer Enterprise Pipeline
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "Operation to run"
+        required: true
+        type: choice
+        default: deploy
+        options:
+          - validate
+          - deploy
+          - release
+          - rollback
+      version:
+        description: "Release version (X.Y.Z). If empty for action=release, patch version is auto-incremented."
+        required: false
+        type: string
+      target_branch:
+        description: "Branch to use for manual validate/deploy/release"
+        required: false
+        default: main
+        type: string
+      target_tag:
+        description: "Tag to rollback to (required for action=rollback)"
+        required: false
+        type: string
+      reason:
+        description: "Rollback reason"
+        required: false
+        default: ""
+        type: string
+      dry_run:
+        description: "Preview only for manual runs (no deploy, no tag push, no release publish)"
+        required: false
+        default: false
+        type: boolean
+
+concurrency:
+  group: stargazer-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate & Test
+    runs-on: ubuntu-latest
+    if: >
+      github.event_name == 'pull_request' ||
+      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'workflow_dispatch' && contains('validate deploy release', github.event.inputs.action))
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.target_branch || github.ref }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: JavaScript syntax checks
+        run: |
+          set -euo pipefail
+          echo "Checking JS files in web/..."
+          ERRORS=0
+          for f in web/*.js; do
+            node --check "$f" && echo "OK $f" || { echo "ERROR: syntax error in $f"; ERRORS=$((ERRORS+1)); }
+          done
+          if [ "$ERRORS" -gt 0 ]; then
+            echo "Found $ERRORS JS file(s) with syntax errors."
+            exit 1
+          fi
+
+      - name: HTML critical element checks
+        run: |
+          set -euo pipefail
+          node -e "
+            const fs = require('fs');
+            const html = fs.readFileSync('web/index.html', 'utf8');
+            const required = [
+              'card-motion', 'card-targets',
+              'scheduler-list-container', 'scheduler-empty-state',
+              'scheduler-timeline-bar'
+            ];
+            let errors = 0;
+            required.forEach(id => {
+              if (!html.includes('id=\"' + id + '\"')) {
+                console.error('Missing required element #' + id);
+                errors++;
+              } else {
+                console.log('OK #' + id);
+              }
+            });
+            if (errors > 0) process.exit(1);
+          "
+
+      - name: Install Python dependencies
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          pip install flake8 bandit
+          if [ -f api/requirements.txt ]; then
+            pip install -r api/requirements.txt
+          fi
+
+      - name: Lint Python (critical errors)
+        run: |
+          set -euo pipefail
+          flake8 api/ --count --select=E9,F63,F7,F82 --show-source --statistics
+
+      - name: Python security scan
+        run: |
+          set -euo pipefail
+          bandit -r api/ -ll -ii -s B104
+
+      - name: Install Playwright and browser
+        run: |
+          set -euo pipefail
+          npm install --save-dev @playwright/test @lhci/cli serve
+          npx playwright install --with-deps chromium
+
+      - name: Run UI smoke tests and performance gate
+        env:
+          CI: true
+        run: |
+          set -euo pipefail
+          npx serve web/ -p 3000 --no-clipboard &
+          SERVER_PID=$!
+          trap 'kill $SERVER_PID' EXIT
+          sleep 4
+
+          # 1) Functional smoke tests (must pass)
+          npx playwright test tests/smoke.spec.js --reporter=line
+
+          # 2) Performance and quality gate (must pass)
+          cat > /tmp/lighthouserc.json <<'EOF'
+          {
+            "ci": {
+              "collect": {
+                "url": ["http://127.0.0.1:3000/"],
+                "numberOfRuns": 2,
+                "settings": {
+                  "preset": "desktop",
+                  "chromeFlags": "--no-sandbox --disable-dev-shm-usage"
+                }
+              },
+              "assert": {
+                "assertions": {
+                  "categories:performance": ["error", { "minScore": 0.65 }],
+                  "categories:best-practices": ["error", { "minScore": 0.75 }],
+                  "categories:accessibility": ["warn", { "minScore": 0.75 }]
+                }
+              },
+              "upload": {
+                "target": "filesystem",
+                "outputDir": "./lighthouseci"
+              }
+            }
+          }
+          EOF
+          npx lhci autorun --config=/tmp/lighthouserc.json
+
+      - name: Upload Playwright report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
+
+      - name: Upload Lighthouse report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lighthouse-report
+          path: lighthouseci/
+          retention-days: 7
+
+  deploy:
+    name: Deploy to Cloud Run
+    runs-on: ubuntu-latest
+    needs: validate
+    if: >
+      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'deploy')
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.target_branch || github.ref }}
+
+      - name: Copy package.json to API directory
+        run: cp package.json api/package.json
+
+      - name: Dry-run deploy preview
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.dry_run == 'true'
+        run: |
+          set -euo pipefail
+          echo "Dry run mode enabled."
+          echo "Would deploy service: ${{ secrets.GCP_SERVICE_NAME }}"
+          echo "Would deploy region: us-central1"
+          echo "Would deploy source: api/"
+
+      - name: Google Auth
+        if: github.event_name != 'workflow_dispatch' || github.event.inputs.dry_run != 'true'
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Deploy to Cloud Run
+        id: deploy_cloud_run
+        if: github.event_name != 'workflow_dispatch' || github.event.inputs.dry_run != 'true'
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: ${{ secrets.GCP_SERVICE_NAME }}
+          region: us-central1
+          source: api/
+          flags: '--execution-environment=gen2 --add-volume=name=db-vol,type=cloud-storage,bucket=stargazer-db-planar-flux-497402-g5 --add-volume-mount=volume=db-vol,mount-path=/mnt/db'
+          env_vars: |-
+            DB_DIR=/mnt/db
+
+      - name: Post-deploy health check
+        if: github.event_name != 'workflow_dispatch' || github.event.inputs.dry_run != 'true'
+        run: |
+          set -euo pipefail
+          BASE_URL="${{ steps.deploy_cloud_run.outputs.url }}"
+          if [ -z "$BASE_URL" ]; then
+            echo "Cloud Run URL output not found from deploy step."
+            exit 1
+          fi
+
+          HEALTH_URL="${BASE_URL%/}/health"
+          echo "Checking $HEALTH_URL"
+
+          for attempt in 1 2 3 4 5; do
+            if curl --fail --silent --show-error --max-time 10 "$HEALTH_URL" >/tmp/health.json; then
+              echo "Health check passed on attempt $attempt"
+              cat /tmp/health.json
+              exit 0
+            fi
+            echo "Health check failed (attempt $attempt). Retrying..."
+            sleep 5
+          done
+
+          echo "Health endpoint failed after retries: $HEALTH_URL"
+          exit 1
+
+  release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: [validate, deploy]
+    if: >
+      always() && (
+      (github.event_name == 'push' && github.ref == 'refs/heads/main' &&
+       !contains(github.event.head_commit.message, '[skip ci]') && github.actor != 'github-actions[bot]' &&
+       needs.deploy.result == 'success') ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'release')
+      )
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.target_branch || github.ref }}
+
+      - name: Resolve release version
+        id: version
+        run: |
+          set -euo pipefail
+          INPUT_VERSION="${{ github.event_name == 'workflow_dispatch' && github.event.inputs.version || '' }}"
+          LAST_TAG=$(git describe --tags --match "v*" --abbrev=0 2>/dev/null || echo "v0.0.0")
+          echo "last_tag=$LAST_TAG" >> "$GITHUB_OUTPUT"
+
+          if [ -n "$INPUT_VERSION" ]; then
+            if ! [[ "$INPUT_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+              echo "Version must be X.Y.Z (got '$INPUT_VERSION')"
+              exit 1
+            fi
+            NEW_VERSION="$INPUT_VERSION"
+          else
+            CURRENT=${LAST_TAG#v}
+            MAJOR=$(echo "$CURRENT" | cut -d. -f1)
+            MINOR=$(echo "$CURRENT" | cut -d. -f2)
+            PATCH=$(echo "$CURRENT" | cut -d. -f3)
+            NEW_PATCH=$((PATCH + 1))
+            NEW_VERSION="$MAJOR.$MINOR.$NEW_PATCH"
+          fi
+
+          echo "new_version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Release dry-run preview
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.dry_run == 'true'
+        run: |
+          set -euo pipefail
+          echo "Dry run mode enabled."
+          echo "Would create tag: v${{ steps.version.outputs.new_version }}"
+          echo "Would create GitHub Release: Release v${{ steps.version.outputs.new_version }}"
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          set -euo pipefail
+          if [ "${{ steps.version.outputs.last_tag }}" = "v0.0.0" ]; then
+            LOG=$(git log --pretty=format:"%h %s (%an, %ad)" --date=short)
+          else
+            LOG=$(git log --pretty=format:"%h %s (%an, %ad)" --date=short "${{ steps.version.outputs.last_tag }}"..HEAD)
+          fi
+          echo "log<<EOF" >> "$GITHUB_OUTPUT"
+          echo "$LOG" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
+
+      - name: Create and push git tag
+        if: github.event_name != 'workflow_dispatch' || github.event.inputs.dry_run != 'true'
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          if git tag -l "v${{ steps.version.outputs.new_version }}" | grep -q .; then
+            echo "Tag v${{ steps.version.outputs.new_version }} already exists."
+          else
+            git tag -a "v${{ steps.version.outputs.new_version }}" -m "Release v${{ steps.version.outputs.new_version }}"
+            git push origin "v${{ steps.version.outputs.new_version }}"
+          fi
+
+      - name: Create GitHub Release
+        if: github.event_name != 'workflow_dispatch' || github.event.inputs.dry_run != 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.version.outputs.new_version }}
+          name: Release v${{ steps.version.outputs.new_version }}
+          body: |
+            ## Changes since last release
+
+            ```
+            ${{ steps.changelog.outputs.log }}
+            ```
+          generate_release_notes: true
+          draft: false
+          prerelease: false
+
+  rollback:
+    name: Create Rollback PR
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'rollback'
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Validate rollback input
+        run: |
+          set -euo pipefail
+          if [ -z "${{ github.event.inputs.target_tag }}" ]; then
+            echo "target_tag is required when action=rollback"
+            exit 1
+          fi
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate target tag exists
+        run: |
+          set -euo pipefail
+          if ! git rev-parse "${{ github.event.inputs.target_tag }}" >/dev/null 2>&1; then
+            echo "Tag ${{ github.event.inputs.target_tag }} not found"
+            exit 1
+          fi
+
+      - name: Verify target is annotated release tag
+        run: |
+          set -euo pipefail
+          TYPE=$(git cat-file -t "${{ github.event.inputs.target_tag }}" 2>/dev/null)
+          if [ "$TYPE" != "tag" ]; then
+            echo "${{ github.event.inputs.target_tag }} is not an annotated tag"
+            exit 1
+          fi
+
+      - name: Create rollback PR
+        id: pr
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          ROLLBACK_BRANCH="rollback-$(date +%Y%m%d)-${{ github.event.inputs.target_tag }}"
+          git checkout -b "$ROLLBACK_BRANCH" "${{ github.event.inputs.target_tag }}"
+          git push origin "$ROLLBACK_BRANCH"
+
+          REASON="${{ github.event.inputs.reason }}"
+          if [ -z "$REASON" ]; then
+            REASON="Rolling back to ${{ github.event.inputs.target_tag }} due to issues in current main"
+          fi
+
+          PR_TITLE="Rollback to ${{ github.event.inputs.target_tag }}"
+          PR_BODY=$(cat <<EOF
+          ## Rollback to ${{ github.event.inputs.target_tag }}
+
+          **Reason:** $REASON
+
+          This PR resets main to the state at tag ${{ github.event.inputs.target_tag }}.
+
+          ### What this does
+          - Reverts all commits since ${{ github.event.inputs.target_tag }}
+          - Restores the codebase to a known-good state
+          - Triggers a fresh deployment via this pipeline after merge
+
+          ### After merge
+          - Monitor health checks at /health to confirm stability
+          EOF
+          )
+
+          PR_URL=$(gh pr create \
+            --base main \
+            --head "$ROLLBACK_BRANCH" \
+            --title "$PR_TITLE" \
+            --body "$PR_BODY")
+
+          echo "url=$PR_URL" >> "$GITHUB_OUTPUT"
+
+      - name: Summary
+        run: 'echo "Rollback PR created: ${{ steps.pr.outputs.url }}"'

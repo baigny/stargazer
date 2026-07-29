@@ -1108,17 +1108,46 @@ async function fetchLatestVersion() {
   _versionFetched = true;
   const versionEl = document.getElementById('hero-version-tag');
   if (!versionEl) return;
+
+  const REPO = 'nicolasnkGH/stargazer';
+  const RELEASES_API = `https://api.github.com/repos/${REPO}/releases/latest`;
+
+  function setVersionLabel(label, tagForLink = null) {
+    if (!label) return;
+    versionEl.innerHTML = `<span class="hero-badge-dot hero-badge-dot-green"></span>${label}`;
+    if (tagForLink) {
+      versionEl.href = `https://github.com/${REPO}/releases/tag/${encodeURIComponent(tagForLink)}`;
+    }
+  }
+
+  try {
+    const releaseRes = await fetch(RELEASES_API, { cache: 'no-store' });
+    if (releaseRes.ok) {
+      const releaseJson = await releaseRes.json();
+      if (releaseJson && releaseJson.tag_name) {
+        setVersionLabel(releaseJson.tag_name, releaseJson.tag_name);
+        return;
+      }
+    }
+  } catch (e) {
+    console.warn('Could not fetch latest release tag from GitHub', e);
+  }
+
   try {
     const res = await fetch(`${API_BASE}/health`);
     if (res.ok) {
       const json = await res.json();
       if (json && json.version) {
-        versionEl.innerHTML = `<span class="hero-badge-dot hero-badge-dot-green"></span>${json.version}`;
+        setVersionLabel(json.version);
+        return;
       }
     }
   } catch (e) {
-    console.warn("Could not fetch latest version from API", e);
+    console.warn('Could not fetch latest version from API', e);
   }
+
+  // Last-resort visual fallback keeps the badge stable even if both sources fail.
+  setVersionLabel('v--');
 }
 
 function loadActiveConstellation(abbr) {
