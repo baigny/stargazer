@@ -1,6 +1,4 @@
 # Environment — NEVER commit tokens or secrets
-.env
-.env.local
 .env.*.local
 
 # Python
@@ -30,7 +28,6 @@ Leap_Second.dat
 .AppleDouble
 
 # IDE
-.vscode/
 .idea/
 *.swp
 
@@ -46,3 +43,4 @@ api/test_sun.py
 # Node.js
 node_modules/
 api/data/ai_cache.json
+config.bat

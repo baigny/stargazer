@@ -88,7 +88,7 @@ function setupMoon3D(container) {
   const bumpTexture = new THREE.CanvasTexture(bumpCanvas);
 
   const textureLoader = new THREE.TextureLoader();
-  const diffuseMap    = textureLoader.load('/assets/moon_texture.webp');
+  const diffuseMap    = textureLoader.load('/textures/moon_texture.webp');
 
   const geometry = new THREE.SphereGeometry(1, 48, 48);
   const material = new THREE.MeshStandardMaterial({
