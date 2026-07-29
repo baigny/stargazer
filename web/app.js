@@ -2317,7 +2317,7 @@ function renderTargetGrid(targets, liveMap, typeFilter = 'all', equipFilter = 'a
           </div>
           <span class="tc-mag">mag ${t.magnitude}</span>
         </div>
-        ${['m1', 'm31', 'm4', 'm42', 'm7', 'm8', 'omega_cen', 'pleiades'].includes(t.id) ? `<img class="target-thumb" src="/textures/targets/${t.id}.webp" alt="${tName}" loading="lazy">` : ''}
+        ${['m1', 'm31', 'm4', 'm42', 'm7', 'm8', 'omega_cen', 'pleiades'].includes(t.id) ? `<img class="target-thumb" src="./assets/targets/${t.id}.webp" alt="${tName}" loading="lazy">` : ''}
         <div class="tc-desc">${tDesc}</div>
         ${t.horizon_note ? `<div class="tc-horizon-note">${t.horizon_note}</div>` : ''}
         <div class="tc-footer" style="flex-wrap: wrap; gap: 8px;">
@@ -2719,8 +2719,8 @@ function initLocationUI() {
           const reg = await navigator.serviceWorker.ready;
           await reg.showNotification('🌌 StarGazer Test Alert', {
             body: 'Push notifications are working! You\'ll be alerted about ISS passes, auroras, and clear skies.',
-            icon: './textures/ai_stargazer_mascot.png',
-            badge: './textures/ai_stargazer_mascot.png',
+            icon: './assets/ai_stargazer_mascot.png',
+            badge: './assets/ai_stargazer_mascot.png',
             data: window.location.origin
           });
         } catch(e) {
@@ -4157,8 +4157,8 @@ function rescheduleAllPlanNotifications() {
             const reg = await navigator.serviceWorker.ready;
             reg.showNotification(`🔭 Plan My Night Alert`, {
               body: `It's time to observe: ${item.name}! Your scheduled slot starts now (${item.startTime} - ${item.endTime}).`,
-              icon: './textures/ai_stargazer_mascot.png',
-              badge: './textures/ai_stargazer_mascot.png',
+              icon: './assets/ai_stargazer_mascot.png',
+              badge: './assets/ai_stargazer_mascot.png',
               data: window.location.origin,
               tag: `plan-${item.id}`
             });
