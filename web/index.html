@@ -144,31 +144,11 @@
       
   </header>
 
-  <!-- ── 3D Gravity Well Hero Section ── -->
-  <section id="hero-section">
-      <!-- 3D WebGL Solar System Background -->
-      <canvas id="solar-system-canvas" style="position:absolute; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index:0;"></canvas>
-      <!-- Hero text overlay -->
-      <div class="hero-content">
-        <div class="hero-eyebrow-row">
-          <span class="hero-live-dot"></span>
-          <span class="hero-eyebrow">Observatory · Dashboard</span>
-        </div>
-        <h1 class="hero-title" data-i18n="app_title">StarGazer</h1>
-        <p class="hero-subtitle" data-i18n="app_slogan">Astronomy made simple.</p>
-        <div class="hero-stats">
-          <div class="hero-stat">
-            <span class="hero-stat-value" id="hero-dark-in">--</span>
-            <span class="hero-stat-label">Dark In</span>
-          </div>
-          <div class="hero-stat-divider"></div>
-          <div class="hero-stat">
-            <span class="hero-stat-value" id="hero-bortle">--</span>
-            <span class="hero-stat-label">Bortle Scale</span>
-          </div>
-        </div>
-      </div>
-    </section>
+  <!-- ── 3D Gravity Well Hero Section (React Integration) ── -->
+  <section id="hero-section" style="position: relative; width: 100%; height: 100vh; overflow: hidden; z-index: 10;">
+    <div id="react-hero-root" style="width: 100%; height: 100%;"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </section>
 
   <main class="main">
 
@@ -621,7 +601,7 @@
             </div>
           </div>
         </div>
-        <div class="card-body" style="padding: 0; overflow: hidden; border-radius: 0 0 12px 12px; min-height: 320px; height: auto; position: relative; background-image: linear-gradient(to right, rgba(148, 163, 184, 0.25) 0%, rgba(148, 163, 184, 0.25) 20%, rgba(100, 116, 139, 0.25) 20%, rgba(100, 116, 139, 0.25) 40%, rgba(71, 85, 105, 0.25) 40%, rgba(71, 85, 105, 0.25) 60%, rgba(51, 65, 85, 0.25) 60%, rgba(51, 65, 85, 0.25) 80%, rgba(15, 23, 42, 0.25) 80%, rgba(15, 23, 42, 0.25) 100%), url('./assets/bortle_scale_bg.webp'); background-size: cover; background-position: center; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; border: 1px solid rgba(255, 255, 255, 0.03);">
+        <div class="card-body" style="padding: 0; overflow: hidden; border-radius: 0 0 12px 12px; min-height: 320px; height: auto; position: relative; background-image: linear-gradient(to right, rgba(148, 163, 184, 0.25) 0%, rgba(148, 163, 184, 0.25) 20%, rgba(100, 116, 139, 0.25) 20%, rgba(100, 116, 139, 0.25) 40%, rgba(71, 85, 105, 0.25) 40%, rgba(71, 85, 105, 0.25) 60%, rgba(51, 65, 85, 0.25) 60%, rgba(51, 65, 85, 0.25) 80%, rgba(15, 23, 42, 0.25) 80%, rgba(15, 23, 42, 0.25) 100%), url('./textures/bortle_scale_bg.webp'); background-size: cover; background-position: center; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; border: 1px solid rgba(255, 255, 255, 0.03);">
           <!-- Map Grid/Glow Styling -->
           <div style="position: absolute; inset: 0; opacity: 0.15; background-image: radial-gradient(rgba(59, 130, 246, 0.3) 1px, transparent 0), radial-gradient(rgba(59, 130, 246, 0.3) 1.5px, transparent 0); background-size: 20px 20px; background-position: 0 0, 10px 10px; pointer-events: none;"></div>
           <div style="position: absolute; width: 150px; height: 150px; border-radius: 50%; background: radial-gradient(circle, rgba(239, 68, 68, 0.15) 0%, transparent 70%); filter: blur(10px); pointer-events: none;"></div>
@@ -708,7 +688,7 @@
     </section>
 
     <!-- ── Aurora & Space Weather Card ── -->
-    <section class="card" id="card-space-weather" style="margin-bottom: 20px; background-image: linear-gradient(to bottom, rgba(15, 23, 42, 0.6), rgba(15, 23, 42, 0.95)), url('./assets/aurora_bg.webp'); background-size: cover; background-position: center; border: 1px solid rgba(168, 85, 247, 0.2);">
+    <section class="card" id="card-space-weather" style="margin-bottom: 20px; background-image: linear-gradient(to bottom, rgba(15, 23, 42, 0.6), rgba(15, 23, 42, 0.95)), url('./textures/aurora_bg.webp'); background-size: cover; background-position: center; border: 1px solid rgba(168, 85, 247, 0.2);">
       <div class="card-header" style="align-items: center;">
         <span class="card-icon" style="color: #a855f7;"><i data-lucide="zap"></i></span>
         <div>
@@ -805,7 +785,15 @@
         <input type="text" id="constellation-search" placeholder="Type constellation name..." style="background: rgba(0, 0, 0, 0.4); border: 1px solid rgba(255, 255, 255, 0.15); color: var(--text-primary); border-radius: 6px; padding: 6px 12px; font-size: 0.85rem; width: 100%; max-width: 240px; outline: none; transition: all 0.2s;">
         <span style="font-size: 0.85rem; color: var(--text-secondary); margin-left: 10px;">🎯 Filter Target Name:</span>
         <input type="text" id="target-name-search" placeholder="Type object name (e.g. M31, Mars, Ring)..." style="background: rgba(0, 0, 0, 0.4); border: 1px solid rgba(255, 255, 255, 0.15); color: var(--text-primary); border-radius: 6px; padding: 6px 12px; font-size: 0.85rem; width: 100%; max-width: 260px; outline: none; transition: all 0.2s;" oninput="window.filterTargetByName(this.value)">
+        <span style="font-size: 0.85rem; color: var(--text-secondary); margin-left: 10px;">↕ Sort:</span>
+        <select id="target-sort-select" style="background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.15); color: var(--text-primary); border-radius: 6px; padding: 6px 12px; font-size: 0.85rem; outline: none; cursor: pointer;" onchange="window.filterTargetByName(document.getElementById('target-name-search')?.value || '')">
+          <option value="default">Default</option>
+          <option value="visibility">🔭 In View Now First</option>
+          <option value="magnitude">✨ Brightest First</option>
+          <option value="name">🔤 Name (A–Z)</option>
+        </select>
       </div>
+
       <div class="constellation-tabs" id="constellation-tabs" style="display: flex; overflow-x: auto; white-space: nowrap; flex-wrap: nowrap; gap: 10px; padding: 10px 24px; background: rgba(0, 0, 0, 0.2); border-bottom: 1px solid var(--border);">
         <!-- Dynamically populated by JS based on visibility -->
       </div>
@@ -1414,9 +1402,8 @@
   <script type="text/javascript" src="https://aladin.u-strasbg.fr/AladinLite/api/v2/latest/aladin.min.js" charset="utf-8" defer></script>
 
   <script src="translations.js?v=64" defer></script>
-  <script src="moon3d.js?v=64" defer></script>
-  <script src="planets3d.js?v=64" defer></script>
-  <script src="hero-solar-system.js?v=64" defer></script>
-  <script src="app.js?v=68" defer></script>
+  <script src="moon3d.js?v=64"></script>
+  <script src="planets3d.js?v=64"></script>
+  <script src="app.js?v=68"></script>
 </body>
 </html>

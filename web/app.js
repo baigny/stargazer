@@ -2152,7 +2152,8 @@ function renderTargetGrid(targets, liveMap, typeFilter = 'all', equipFilter = 'a
   if (!targets) targets = [];
 
   // 1. Reset display chunk counter if the user switches active filter tabs
-  const cacheKey = typeFilter + '-' + equipFilter;
+  const sortVal = (document.getElementById('target-sort-select') || {}).value || 'default';
+  const cacheKey = typeFilter + '-' + equipFilter + '-' + sortVal;
   if (window.activeTargetFilter !== cacheKey) {
     window.activeTargetFilter = cacheKey;
     window.targetDisplayedCount = 12;
@@ -2227,6 +2228,34 @@ function renderTargetGrid(targets, liveMap, typeFilter = 'all', equipFilter = 'a
     });
   }
 
+  // User-chosen sort override
+  const sortSelect = document.getElementById('target-sort-select');
+  const sortVal = sortSelect ? sortSelect.value : 'default';
+  if (sortVal === 'visibility') {
+    // Visibility priority: In view now > Blocked by Horizon > Below Horizon > Daytime
+    const visRank = (t) => {
+      const live = liveMap[t.id] || {};
+      if (live.is_daytime) return 4;
+      const alt = live.altitude_deg != null ? live.altitude_deg : -90;
+      if (alt > 15) return 0;         // In view now
+      if (alt > 0) return 1;          // Just above horizon
+      if (alt > -15) return 2;        // Blocked by horizon
+      return 3;                        // Below horizon
+    };
+    filtered.sort((a, b) => {
+      const ra = visRank(a), rb = visRank(b);
+      if (ra !== rb) return ra - rb;
+      // Secondary: altitude descending
+      const altA = (liveMap[a.id] || {}).altitude_deg ?? -90;
+      const altB = (liveMap[b.id] || {}).altitude_deg ?? -90;
+      return altB - altA;
+    });
+  } else if (sortVal === 'magnitude') {
+    filtered.sort((a, b) => (a.magnitude ?? 99) - (b.magnitude ?? 99));
+  } else if (sortVal === 'name') {
+    filtered.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+  }
+
   // 3. Smoothly slice the processed filtered data for chunked rendering
   console.log("Filtered length:", filtered.length, "t.type was", targets.length ? targets[0].type : "N/A");
   const displayedTargets = filtered.slice(0, window.targetDisplayedCount || 12);
@@ -2290,7 +2319,7 @@ function renderTargetGrid(targets, liveMap, typeFilter = 'all', equipFilter = 'a
           </div>
           <span class="tc-mag">mag ${t.magnitude}</span>
         </div>
-        ${['m1', 'm31', 'm4', 'm42', 'm7', 'm8', 'omega_cen', 'pleiades'].includes(t.id) ? `<img class="target-thumb" src="/assets/targets/${t.id}.webp" alt="${tName}" loading="lazy">` : ''}
+        ${['m1', 'm31', 'm4', 'm42', 'm7', 'm8', 'omega_cen', 'pleiades'].includes(t.id) ? `<img class="target-thumb" src="/textures/targets/${t.id}.webp" alt="${tName}" loading="lazy">` : ''}
         <div class="tc-desc">${tDesc}</div>
         ${t.horizon_note ? `<div class="tc-horizon-note">${t.horizon_note}</div>` : ''}
         <div class="tc-footer" style="flex-wrap: wrap; gap: 8px;">
@@ -2680,20 +2709,28 @@ function initLocationUI() {
   if (btnTestAlert) {
     btnTestAlert.addEventListener('click', async () => {
       // Try server-side push first (works in prod with VAPID)
+      let serverOk = false;
       try {
         const resp = await fetch(`${API_BASE}/api/push/test`, { method: 'POST' });
-        if (resp.ok) return; // server sent it
-      } catch (e) { /* fall through to local notification */ }
+        serverOk = resp.ok;
+      } catch (e) { /* fall through */ }
 
-      // Fallback: local notification via SW (works on localhost without VAPID)
-      if ('serviceWorker' in navigator) {
-        const reg = await navigator.serviceWorker.ready;
-        reg.showNotification('🌌 StarGazer Test Alert', {
-          body: 'Push notifications are working! You\'ll be alerted about ISS passes, auroras, and clear skies.',
-          icon: './assets/ai_stargazer_mascot.png',
-          badge: './assets/ai_stargazer_mascot.png',
-          data: window.location.origin
-        });
+      // Always also fire a local SW notification so user gets instant feedback
+      if ('serviceWorker' in navigator && Notification.permission === 'granted') {
+        try {
+          const reg = await navigator.serviceWorker.ready;
+          await reg.showNotification('🌌 StarGazer Test Alert', {
+            body: 'Push notifications are working! You\'ll be alerted about ISS passes, auroras, and clear skies.',
+            icon: './textures/ai_stargazer_mascot.png',
+            badge: './textures/ai_stargazer_mascot.png',
+            data: window.location.origin
+          });
+        } catch(e) {
+          // SW notification failed — show in-app toast fallback
+          if (window.showInfo) window.showInfo('🔔 Test notification sent! (in-app only — browser notification blocked)', null, false);
+        }
+      } else if (!serverOk) {
+        if (window.showInfo) window.showInfo('⚠️ Notification permission not granted. Enable alerts first.', null, false);
       }
     });
   }
@@ -4122,8 +4159,8 @@ function rescheduleAllPlanNotifications() {
             const reg = await navigator.serviceWorker.ready;
             reg.showNotification(`🔭 Plan My Night Alert`, {
               body: `It's time to observe: ${item.name}! Your scheduled slot starts now (${item.startTime} - ${item.endTime}).`,
-              icon: './assets/ai_stargazer_mascot.png',
-              badge: './assets/ai_stargazer_mascot.png',
+              icon: './textures/ai_stargazer_mascot.png',
+              badge: './textures/ai_stargazer_mascot.png',
               data: window.location.origin,
               tag: `plan-${item.id}`
             });
@@ -4239,11 +4276,31 @@ document.addEventListener('DOMContentLoaded', () => {
   renderNightPlan();
   
   document.getElementById('btn-clear-plan')?.addEventListener('click', () => {
-    if (confirm('Are you sure you want to clear your entire Night Plan?')) {
+    // Use a custom in-app confirm to avoid browser confirm() suppression
+    const modal = document.createElement('div');
+    modal.id = 'clear-plan-confirm-modal';
+    modal.style.cssText = 'position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.7);backdrop-filter:blur(4px);';
+    modal.innerHTML = `
+      <div style="background:#1e1b2e;border:1px solid rgba(168,85,247,0.4);border-radius:14px;padding:28px 32px;max-width:380px;width:90%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.6);">
+        <div style="font-size:2rem;margin-bottom:12px;">🗑️</div>
+        <div style="font-size:1.05rem;font-weight:700;color:#fff;margin-bottom:8px;">Clear Night Plan?</div>
+        <div style="font-size:0.85rem;color:#94a3b8;margin-bottom:22px;">This will remove all ${nightPlan.length} item${nightPlan.length !== 1 ? 's' : ''} from your plan. This cannot be undone.</div>
+        <div style="display:flex;gap:12px;justify-content:center;">
+          <button id="clear-plan-cancel" style="padding:9px 24px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.07);color:#e2e8f0;cursor:pointer;font-size:0.9rem;font-weight:600;">Cancel</button>
+          <button id="clear-plan-confirm" style="padding:9px 24px;border-radius:8px;border:1px solid #ef4444;background:rgba(239,68,68,0.15);color:#f87171;cursor:pointer;font-size:0.9rem;font-weight:700;">Clear All</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+    modal.querySelector('#clear-plan-cancel').addEventListener('click', () => modal.remove());
+    modal.querySelector('#clear-plan-confirm').addEventListener('click', () => {
+      modal.remove();
       nightPlan = [];
       saveAndRenderPlan();
-    }
+    });
+    modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
   });
+
 
   document.getElementById('btn-export-txt')?.addEventListener('click', () => {
     if (nightPlan.length === 0) {
