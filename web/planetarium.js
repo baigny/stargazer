@@ -1,4 +1,4 @@
-const API_BASE = window.location.hostname.includes('nick-t.net')
+const API_BASE = (window.location.hostname === 'nick-t.net' || window.location.hostname.endsWith('.nick-t.net'))
   ? 'https://stargazer-api-700732233634.us-central1.run.app'
   : `http://${window.location.hostname}:8181`;
 
