@@ -17,6 +17,20 @@ window.escapeHtml = function(str) {
     .replace(/'/g, "&#039;");
 };
 
+function parseLegacyOnclickArgs(argsSrc) {
+  // Parse comma-separated quoted/unquoted args without evaluating code.
+  const matches = String(argsSrc).match(/'[^']*'|"[^"]*"|[^,]+/g) || [];
+  return matches.map((token) => {
+    const trimmed = token.trim();
+    if ((trimmed.startsWith("'") && trimmed.endsWith("'")) ||
+        (trimmed.startsWith('"') && trimmed.endsWith('"'))) {
+      return trimmed.slice(1, -1);
+    }
+    const numeric = Number(trimmed);
+    return Number.isFinite(numeric) ? numeric : trimmed;
+  });
+}
+
 
 function translateDate(dateStr) {
   if (!dateStr || currentLang === 'en') return dateStr;
@@ -53,11 +67,11 @@ window.showInfo = function(msg, event, sticky = false) {
     tm.innerHTML = `
       <div style="position:relative; padding-right:12px;">
         <div onclick="document.getElementById('toast').style.opacity='0'; setTimeout(()=>document.getElementById('toast').style.display='none',200)" style="position:absolute; top:-12px; right:-14px; cursor:pointer; color:#94a3b8; font-weight:bold; font-size:1.2rem; padding:4px; z-index:10001;">&times;</div>
-        ${msg}
+        ${window.escapeHtml(msg)}
       </div>
     `;
   } else {
-    tm.innerHTML = msg;
+    tm.textContent = String(msg ?? '');
   }
   
   if (event) {
@@ -172,12 +186,7 @@ document.addEventListener('click', function (e) {
         const m = onclick.match(/addToPlan\(([^)]*)\)/);
         if (m && m[1]) {
           const argsSrc = m[1];
-          let parsedArgs = [];
-          try {
-            parsedArgs = Function('return [' + argsSrc + ']')();
-          } catch (e) {
-            parsedArgs = argsSrc.split(',').map(s => s.trim().replace(/^['"]|['"]$/g, ''));
-          }
+          const parsedArgs = parseLegacyOnclickArgs(argsSrc);
           const [pid, pname, pra = 0, pdec = 0] = parsedArgs;
           try { window.addToPlan(pid, pname, Number(pra), Number(pdec)); } catch (err) { console.warn('addToPlan fallback failed', err); }
           return;
@@ -3215,8 +3224,17 @@ async function loadAPOD() {
 
 // ── Init ────────────────────────────────────────────────────────────────────
 async function init() {
-  initLocationUI();
-  await fetchGalleryCounts();
+  try {
+    initLocationUI();
+  } catch (err) {
+    console.warn('initLocationUI failed', err);
+  }
+
+  try {
+    await fetchGalleryCounts();
+  } catch (err) {
+    console.warn('fetchGalleryCounts failed', err);
+  }
 
   // --- First-time Welcome Location Prompt ---
   const welcomeModal = document.getElementById('welcome-modal');
@@ -3269,6 +3287,12 @@ async function init() {
       const icon = headerGpsBtn.querySelector('i');
       if (icon) icon.style.stroke = 'var(--accent-blue)';
       
+      if (!navigator.geolocation) {
+        alert('Geolocation is not available in this browser.');
+        if (icon) icon.style.stroke = 'currentColor';
+        return;
+      }
+
       navigator.geolocation.getCurrentPosition(
         pos => {
           const lat = pos.coords.latitude;
@@ -3285,11 +3309,10 @@ async function init() {
               const newLoc = { id: newId, name: locName, lat: lat, lon: lon };
               savedLocations.push(newLoc);
               localStorage.setItem('stargazer_locations', JSON.stringify(savedLocations));
-              // Mark tour to run after reload (first visit)
               if (!localStorage.getItem('sg_tour_seen')) {
                 localStorage.setItem('sg_tour_pending', '1');
               }
-              activateLocation(newId); // triggers reload
+              activateLocation(newId);
               if (icon) icon.style.stroke = 'currentColor';
             })
             .catch(() => {
@@ -3313,8 +3336,10 @@ async function init() {
   }
   
   if (currentLat === null || currentLon === null) {
-    document.getElementById('logo-sub').textContent = 'Location Required';
-    document.getElementById('logo-coords').textContent = 'Please enable GPS';
+    const logoSub = document.getElementById('logo-sub');
+    const logoCoords = document.getElementById('logo-coords');
+    if (logoSub) logoSub.textContent = 'Location Required';
+    if (logoCoords) logoCoords.textContent = 'Please enable GPS';
     
     // First visit: auto-trigger GPS then continue init + show tour
     if (headerGpsBtn) {
@@ -3351,11 +3376,13 @@ async function init() {
     tab.addEventListener('click', (e) => {
       document.querySelectorAll('.const-tab').forEach(b => b.classList.remove('active'));
       const btn = e.target;
-      btn.classList.add('active');
-      currentConstellation = btn.dataset.const;
+      if (btn) btn.classList.add('active');
+      currentConstellation = btn?.dataset?.const || currentConstellation;
       localStorage.setItem('sg_constellation', currentConstellation);
       window.targetDisplayedCount = 12;
-      document.getElementById('target-db-title').textContent = `${btn.textContent.trim()} ${window.i18n[currentLang].targets_title_suffix}`;
+      const titleEl = document.getElementById('target-db-title');
+      const suffix = (window.i18n && window.i18n[currentLang] && window.i18n[currentLang].targets_title_suffix) || 'Targets';
+      if (titleEl) titleEl.textContent = `${btn?.textContent?.trim() || 'Targets'} ${suffix}`;
       loadTargets();
       loadActiveConstellation(currentConstellation);
     });
@@ -3386,17 +3413,17 @@ async function init() {
     });
   }
 
-  // Load everything in parallel
+  // Load everything in parallel, but do not let one optional failure break the whole page
   await Promise.allSettled([
-    checkAPIStatus(),
-    loadTonightReport(),
-    loadWeekly(),
-    loadISS(),
-    loadConstellations(),
-    loadTargets(),
-    loadActiveConstellation(currentConstellation),
-    loadSpaceWeather(),
-    loadAPOD()
+    checkAPIStatus().catch(err => console.warn('checkAPIStatus failed', err)),
+    loadTonightReport().catch(err => console.warn('loadTonightReport failed', err)),
+    loadWeekly().catch(err => console.warn('loadWeekly failed', err)),
+    loadISS().catch(err => console.warn('loadISS failed', err)),
+    loadConstellations().catch(err => console.warn('loadConstellations failed', err)),
+    loadTargets().catch(err => console.warn('loadTargets failed', err)),
+    loadActiveConstellation(currentConstellation).catch(err => console.warn('loadActiveConstellation failed', err)),
+    loadSpaceWeather().catch(err => console.warn('loadSpaceWeather failed', err)),
+    loadAPOD().catch(err => console.warn('loadAPOD failed', err))
   ]);
 
   // Wire up the Sky Objects in Motion sub-tabs and fact cards
@@ -3445,7 +3472,7 @@ async function init() {
           window.location.reload();
         });
       })
-      .catch(err => console.error('Service Worker registration failed', err));
+      .catch(err => console.warn('Service Worker registration failed', err));
   }
 
   // Init Lucide icons after all data has loaded
@@ -3518,7 +3545,11 @@ function isSolarSystemFullscreen() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  init();
+  try {
+    init();
+  } catch (err) {
+    console.warn('Initial app init failed', err);
+  }
   // Fallback: re-run Lucide after a short delay to catch any late-injected icons
   setTimeout(() => { if (window.lucide) lucide.createIcons(); }, 1500);
 });

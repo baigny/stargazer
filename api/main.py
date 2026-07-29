@@ -132,12 +132,18 @@ async def cors_middleware(request: Request, call_next):
     response = await call_next(request)
 
     origin = request.headers.get("origin", "")
-    # For privacy browsers (Brave/Safari) that strip Origin headers, 
-    # or PWAs/webviews that send "null", we return * to ensure CORS doesn't block.
-    if not origin or origin == "null" or _is_allowed_origin(origin):
-        response.headers["Access-Control-Allow-Origin"] = "*" if (not origin or origin == "null") else origin
+    # Only emit CORS headers when an Origin header exists and is allowed.
+    if origin == "null":
+        response.headers["Access-Control-Allow-Origin"] = "null"
+    elif origin and _is_allowed_origin(origin):
+        response.headers["Access-Control-Allow-Origin"] = origin
+
+    if "Access-Control-Allow-Origin" in response.headers:
         response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
-        response.headers["Access-Control-Allow-Headers"] = "*"
+        response.headers["Access-Control-Allow-Headers"] = (
+            "Content-Type, Authorization, X-Requested-With, "
+            "CF-Access-Client-Id, CF-Access-Client-Secret, X-API-KEY"
+        )
 
     # Cache-Control for API responses (5 min, matches server-side TTLs)
     if not request.url.path.startswith("/api/"):

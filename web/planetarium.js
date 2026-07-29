@@ -2,6 +2,16 @@ const API_BASE = window.location.hostname.includes('nick-t.net')
   ? 'https://stargazer-api-700732233634.us-central1.run.app'
   : `http://${window.location.hostname}:8181`;
 
+function escapeHtml(str) {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
 async function fetchAPI(path) {
   try {
     const res = await fetch(`${API_BASE}${path}`);
@@ -113,7 +123,7 @@ async function initPlanetarium() {
         .on('mouseover', function(d, i) {
             d3.select(this).attr('stroke', '#fff').attr('stroke-width', 2.5);
             tooltip.style('opacity', 1)
-                   .html(`<strong>${d.name}</strong><br>Mag ${d.magnitude || '?'}`)
+               .html(`<strong>${escapeHtml(d.name)}</strong><br>Mag ${escapeHtml(d.magnitude || '?')}`)
                    .style('left', (d3.event.pageX + 15) + 'px')
                    .style('top', (d3.event.pageY - 25) + 'px');
         })
@@ -151,7 +161,7 @@ async function initPlanetarium() {
             
             document.getElementById('pld-alt').textContent = d.altitude_deg != null ? `${d.altitude_deg}° ${d.direction}` : 'Unknown';
             
-            document.getElementById('pld-desc').innerHTML = d.description || 'No description available for this target.';
+            document.getElementById('pld-desc').textContent = d.description || 'No description available for this target.';
         });
         
       nodes.exit().remove();
@@ -244,14 +254,14 @@ async function initPlanetarium() {
         let dist = data.distance === 'Unknown' ? (dict.simbad_unknown || 'Unknown') : data.distance;
         
         const html = `
-          <div style="font-size: 1.05rem; color: #fff; margin-bottom: 6px; font-weight: bold;">${data.name.replace('* ', '')}</div>
+          <div style="font-size: 1.05rem; color: #fff; margin-bottom: 6px; font-weight: bold;">${escapeHtml((data.name || '').replace('* ', ''))}</div>
           <div style="display:flex; justify-content:space-between; margin-bottom:4px; gap: 15px;">
             <span style="color:#94a3b8;">${dict.simbad_spectral || 'Spectral Type'}</span>
-            <span style="color:#4ade80; font-family:monospace;">${spType}</span>
+            <span style="color:#4ade80; font-family:monospace;">${escapeHtml(spType)}</span>
           </div>
           <div style="display:flex; justify-content:space-between;">
             <span style="color:#94a3b8;">${dict.simbad_dist || 'Distance'}</span>
-            <span style="color:#60a5fa; font-family:monospace;">${dist}</span>
+            <span style="color:#60a5fa; font-family:monospace;">${escapeHtml(dist)}</span>
           </div>
         `;
         showInfoSleek(html, true);
