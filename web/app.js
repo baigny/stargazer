@@ -199,7 +199,7 @@ document.addEventListener('click', function (e) {
 });
 
 let API_BASE;
-if (window.location.hostname.includes('nick-t.net')) {
+if (window.location.hostname === 'nick-t.net' || window.location.hostname.endsWith('.nick-t.net')) {
   API_BASE = 'https://stargazer-api-700732233634.us-central1.run.app';
 } else if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
   API_BASE = '/api'; // Point to the local backend proxy on 8181
