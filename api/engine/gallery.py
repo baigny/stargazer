@@ -117,7 +117,9 @@ def get_gallery_entries(target_id: str = None) -> list[dict]:
     return data
 
 def get_gallery_image(entry_id: int) -> str:
-    img_path = os.path.join(IMG_DIR, f"{entry_id}.b64")
+    img_path = os.path.normpath(os.path.join(IMG_DIR, f"{entry_id}.b64"))
+    if not img_path.startswith(os.path.normpath(IMG_DIR) + os.sep):
+        return ""
     try:
         with open(img_path, "r") as f:
             return f.read()
@@ -140,7 +142,9 @@ def delete_gallery_entry(entry_id: int):
     data = _load_data()
     data = [e for e in data if e["id"] != entry_id]
     _save_data(data)
-    img_path = os.path.join(IMG_DIR, f"{entry_id}.b64")
+    img_path = os.path.normpath(os.path.join(IMG_DIR, f"{entry_id}.b64"))
+    if not img_path.startswith(os.path.normpath(IMG_DIR) + os.sep):
+        return
     if os.path.exists(img_path):
         try:
             os.remove(img_path)

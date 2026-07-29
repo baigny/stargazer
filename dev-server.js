@@ -47,6 +47,15 @@ const server = http.createServer((req, res) => {
   // Strip query string from file path
   filePath = filePath.split('?')[0];
 
+  // Prevent directory traversal: resolve and ensure path stays within WEB_ROOT
+  const resolvedFilePath = path.resolve(filePath);
+  if (!resolvedFilePath.startsWith(WEB_ROOT + path.sep) && resolvedFilePath !== WEB_ROOT) {
+    res.writeHead(403, { 'Content-Type': 'text/plain' });
+    res.end('Forbidden');
+    return;
+  }
+  filePath = resolvedFilePath;
+
   fs.stat(filePath, (err, stat) => {
     if (err || !stat.isFile()) {
       // SPA fallback
