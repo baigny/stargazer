@@ -3095,8 +3095,92 @@ async function loadSpaceWeather() {
         alertsContainer.innerHTML = '<div style="font-size: 0.85rem; color: var(--text-dim); text-align: center; margin-top: 20px;">No active space weather alerts.</div>';
       }
     }
+
+    // Supplement with NASA DONKI events
+    try {
+      const donkiRes = await fetch(`${API_BASE}/nasa/space-weather`);
+      if (donkiRes.ok) {
+        const donkiData = await donkiRes.json();
+        const events = donkiData.events || [];
+        if (alertsContainer && events.length > 0) {
+          // Only add DONKI events if container isn't already full
+          const existing = alertsContainer.querySelectorAll('div').length;
+          if (existing === 0 || alertsContainer.querySelector('[style*="text-align: center"]')) {
+            alertsContainer.innerHTML = '';
+          }
+          events.slice(0, 4).forEach(ev => {
+            const item = document.createElement('div');
+            item.style.padding = '8px';
+            item.style.background = 'rgba(255, 255, 255, 0.03)';
+            item.style.borderRadius = '5px';
+            const typeColor = ev.type === 'Geomagnetic Storm' ? '#ef4444' : ev.type === 'Solar Flare' ? '#f97316' : '#a855f7';
+            item.style.borderLeft = `3px solid ${typeColor}`;
+            item.style.fontSize = '0.75rem';
+            item.style.lineHeight = '1.3';
+            const timeStr = ev.time ? ev.time.replace('T', ' ').slice(0, 16) + ' UTC' : '';
+            item.innerHTML = `<strong style="color: #fff; display:block; margin-bottom: 2px;">${window.escapeHtml(ev.type)}</strong>
+                              <span style="color: var(--text-dim); font-size: 0.7rem;">${window.escapeHtml(ev.note)}</span><br>
+                              <span style="color: var(--text-dim); font-size: 0.65rem;">${timeStr}</span>`;
+            alertsContainer.appendChild(item);
+          });
+        }
+      }
+    } catch(donkiErr) {
+      console.warn('DONKI fetch failed:', donkiErr);
+    }
+
   } catch(e) {
     console.error("Failed to load space weather", e);
+  }
+}
+
+async function loadAPOD() {
+  const apodSection = document.getElementById('apod-card');
+  if (!apodSection) return;
+  try {
+    const res = await fetch(`${API_BASE}/nasa/apod`);
+    if (!res.ok) { apodSection.style.display = 'none'; return; }
+    const data = await res.json();
+    if (data.error) { apodSection.style.display = 'none'; return; }
+
+    const imgEl = document.getElementById('apod-img');
+    const videoEl = document.getElementById('apod-video');
+    const titleEl = document.getElementById('apod-title');
+    const dateEl = document.getElementById('apod-date');
+    const descEl = document.getElementById('apod-desc');
+    const copyrightEl = document.getElementById('apod-copyright');
+
+    if (titleEl) titleEl.textContent = data.title || '';
+    if (dateEl) dateEl.textContent = data.date || '';
+    if (descEl) {
+      // Show first 3 sentences
+      const sentences = (data.explanation || '').match(/[^.!?]+[.!?]+/g) || [];
+      descEl.textContent = sentences.slice(0, 3).join(' ').trim();
+    }
+    if (copyrightEl) copyrightEl.textContent = data.copyright ? `© ${data.copyright.trim()}` : '© NASA';
+
+    if (data.media_type === 'video') {
+      if (imgEl) imgEl.style.display = 'none';
+      if (videoEl) {
+        videoEl.src = data.url;
+        videoEl.style.display = 'block';
+      }
+    } else {
+      if (videoEl) videoEl.style.display = 'none';
+      if (imgEl) {
+        imgEl.src = data.hdurl || data.url;
+        imgEl.alt = data.title || 'Astronomy Picture of the Day';
+        imgEl.style.display = 'block';
+        // click to view full HD
+        imgEl.style.cursor = 'pointer';
+        imgEl.onclick = () => window.open(data.hdurl || data.url, '_blank');
+      }
+    }
+    apodSection.style.display = '';
+  } catch(e) {
+    console.warn('APOD load failed:', e);
+    const apodSection2 = document.getElementById('apod-card');
+    if (apodSection2) apodSection2.style.display = 'none';
   }
 }
 
@@ -3282,7 +3366,8 @@ async function init() {
     loadConstellations(),
     loadTargets(),
     loadActiveConstellation(currentConstellation),
-    loadSpaceWeather()
+    loadSpaceWeather(),
+    loadAPOD()
   ]);
 
   // Wire up the Sky Objects in Motion sub-tabs and fact cards
