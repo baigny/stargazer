@@ -24,12 +24,14 @@ def _call_ai_api(api_url, api_model, payload, auth_header, timeout_sec):
     headers = {"Content-Type": "application/json"}
     if auth_header:
         headers["Authorization"] = f"Bearer {auth_header}"
-    if CF_ACCESS_CLIENT_ID and CF_ACCESS_CLIENT_SECRET:
+    # Inject Cloudflare Access headers only for the protected domain
+    if CF_ACCESS_CLIENT_ID and CF_ACCESS_CLIENT_SECRET and "nick-t.net" in api_url:
         headers["CF-Access-Client-Id"] = CF_ACCESS_CLIENT_ID
         headers["CF-Access-Client-Secret"] = CF_ACCESS_CLIENT_SECRET
     payload = payload.copy()
     payload["model"] = api_model
     resp = requests.post(api_url, json=payload, headers=headers, timeout=timeout_sec)
+
     resp.raise_for_status()
     return resp.json()
 
