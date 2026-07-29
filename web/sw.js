@@ -5,10 +5,10 @@ const STATIC_ASSETS = [
   './style.css',
   './app.js',
   './manifest.json',
-  './assets/ai_stargazer_mascot.png',
-  './assets/ai_stargazer_mascot.webp',
-  './assets/2k_sun.webp',
-  './assets/2k_earth_daymap.webp'
+  './textures/ai_stargazer_mascot.png',
+  './textures/ai_stargazer_mascot.webp',
+  './textures/2k_sun.webp',
+  './textures/2k_earth_daymap.webp'
 ];
 
 self.addEventListener('install', (event) => {
@@ -83,8 +83,8 @@ self.addEventListener('push', (event) => {
     const title = data.title || 'StarGazer Alert';
     const options = {
       body: data.body || 'New celestial event!',
-      icon: './assets/ai_stargazer_mascot.png',
-      badge: './assets/ai_stargazer_mascot.png',
+      icon: './textures/ai_stargazer_mascot.png',
+      badge: './textures/ai_stargazer_mascot.png',
       vibrate: [200, 100, 200],
       data: data.url || '/'
     };
