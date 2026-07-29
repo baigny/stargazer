@@ -132,7 +132,7 @@ def _background_ai_task(payload, headers, current_hash, fallback_args=None):
     if FALLBACK_AI_API_URL and FALLBACK_AI_MODEL:
         try:
             logging.info("AI Seeing: Trying fallback remote API %s", FALLBACK_AI_API_URL)
-            data = _call_ai_api(FALLBACK_AI_API_URL, FALLBACK_AI_MODEL, payload, None, timeout_sec)
+            data = _call_ai_api(FALLBACK_AI_API_URL, FALLBACK_AI_MODEL, payload, auth_header, timeout_sec)
             result = _parse_ai_response(data)
             if result:
                 logging.info("AI Seeing: Fallback remote API succeeded")
@@ -146,7 +146,7 @@ def _background_ai_task(payload, headers, current_hash, fallback_args=None):
     if LOCAL_AI_URL and LOCAL_AI_MODEL:
         try:
             logging.info("AI Seeing: Trying local model %s", LOCAL_AI_URL)
-            data = _call_ai_api(LOCAL_AI_URL, LOCAL_AI_MODEL, payload, None, timeout_sec)
+            data = _call_ai_api(LOCAL_AI_URL, LOCAL_AI_MODEL, payload, auth_header, timeout_sec)
             result = _parse_ai_response(data)
             if result:
                 logging.info("AI Seeing: Local model succeeded")
