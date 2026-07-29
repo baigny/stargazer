@@ -54,12 +54,12 @@ def get_iss_passes(count: int = 3, lat=None, lon=None) -> list[dict]:
                 resp.raise_for_status()
                 lines = [l.strip() for l in resp.text.strip().splitlines() if l.strip()]
                 name, line1, line2 = lines[0], lines[1], lines[2]
-            except Exception as e:
+            except Exception:
                 return [{
                     "rise": "N/A", "set": "N/A",
                     "peak_alt": "N/A", "peak_az": "S",
                     "visible": False,
-                    "error": f"Could not fetch TLE: {e}",
+                    "error": "Could not fetch TLE data",
                     "fallback_url": f"https://heavens-above.com/PassSummary.aspx?satid=25544&lat={LATITUDE}&lng={LONGITUDE}",
                 }]
 

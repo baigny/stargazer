@@ -31,7 +31,7 @@ def _call_ai_api(api_url, api_model, payload, auth_header, timeout_sec):
     # Inject Cloudflare Access headers only for the protected domain
     if CF_ACCESS_CLIENT_ID and CF_ACCESS_CLIENT_SECRET:
         parsed = urlparse(api_url)
-        if parsed.hostname and parsed.hostname.endswith("nick-t.net"):
+        if parsed.hostname and (parsed.hostname == "nick-t.net" or parsed.hostname.endswith(".nick-t.net")):
             headers["CF-Access-Client-Id"] = CF_ACCESS_CLIENT_ID
             headers["CF-Access-Client-Secret"] = CF_ACCESS_CLIENT_SECRET
     payload = payload.copy()
