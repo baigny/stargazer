@@ -10,7 +10,7 @@ import time
 from datetime import date, timedelta
 from typing import Optional
 
-from config import AI_API_KEY, AI_API_URL, AI_MODEL, FALLBACK_AI_API_URL, FALLBACK_AI_MODEL, LOCAL_AI_URL, LOCAL_AI_MODEL, LATITUDE, LONGITUDE, AI_TIMEOUT
+from config import AI_API_KEY, AI_API_URL, AI_MODEL, FALLBACK_AI_API_URL, FALLBACK_AI_MODEL, FALLBACK_AI_API_KEY, LOCAL_AI_URL, LOCAL_AI_MODEL, LATITUDE, LONGITUDE, AI_TIMEOUT, CF_ACCESS_CLIENT_ID, CF_ACCESS_CLIENT_SECRET
 
 from .cache import _load_ai_cache, _save_ai_cache, get_cache, set_cache
 from .moon import get_moon_info
@@ -24,6 +24,9 @@ def _call_ai_api(api_url, api_model, payload, auth_header, timeout_sec):
     headers = {"Content-Type": "application/json"}
     if auth_header:
         headers["Authorization"] = f"Bearer {auth_header}"
+    if CF_ACCESS_CLIENT_ID and CF_ACCESS_CLIENT_SECRET:
+        headers["CF-Access-Client-Id"] = CF_ACCESS_CLIENT_ID
+        headers["CF-Access-Client-Secret"] = CF_ACCESS_CLIENT_SECRET
     payload = payload.copy()
     payload["model"] = api_model
     resp = requests.post(api_url, json=payload, headers=headers, timeout=timeout_sec)
@@ -112,6 +115,7 @@ def _save_result(current_hash, result, fallback_args):
 def _background_ai_task(payload, headers, current_hash, fallback_args=None):
     """Run in a background thread: try primary API → fallback remote → local llama.cpp → rule-based."""
     auth_header = AI_API_KEY if AI_API_KEY else None
+    fallback_auth_header = FALLBACK_AI_API_KEY if FALLBACK_AI_API_KEY else auth_header
     timeout_sec = max(AI_TIMEOUT, 15)  # at least 15s per API
 
     # 1. Primary remote API
@@ -132,7 +136,7 @@ def _background_ai_task(payload, headers, current_hash, fallback_args=None):
     if FALLBACK_AI_API_URL and FALLBACK_AI_MODEL:
         try:
             logging.info("AI Seeing: Trying fallback remote API %s", FALLBACK_AI_API_URL)
-            data = _call_ai_api(FALLBACK_AI_API_URL, FALLBACK_AI_MODEL, payload, auth_header, timeout_sec)
+            data = _call_ai_api(FALLBACK_AI_API_URL, FALLBACK_AI_MODEL, payload, fallback_auth_header, timeout_sec)
             result = _parse_ai_response(data)
             if result:
                 logging.info("AI Seeing: Fallback remote API succeeded")
