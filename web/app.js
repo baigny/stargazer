@@ -2228,9 +2228,7 @@ function renderTargetGrid(targets, liveMap, typeFilter = 'all', equipFilter = 'a
     });
   }
 
-  // User-chosen sort override
-  const sortSelect = document.getElementById('target-sort-select');
-  const sortVal = sortSelect ? sortSelect.value : 'default';
+  // User-chosen sort override (sortVal already read at top of function)
   if (sortVal === 'visibility') {
     // Visibility priority: In view now > Blocked by Horizon > Below Horizon > Daytime
     const visRank = (t) => {
