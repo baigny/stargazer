@@ -4263,6 +4263,62 @@ function rescheduleAllPlanNotifications() {
   });
 }
 
+// Navigate from a plan item to its section on the page
+window.navigateToPlanItem = function(idx) {
+  const item = nightPlan[idx];
+  if (!item) return;
+  const id = (item.id || '').toLowerCase();
+  const name = (item.name || '').toLowerCase();
+
+  const motionMap = [
+    { keys: ['iss'],                          panel: 'motion-iss-panel' },
+    { keys: ['neo', 'asteroid', 'near_earth'], panel: 'motion-neo-panel' },
+    { keys: ['comet', 'c2023', 'tsuchinshan'], panel: 'motion-comets-panel' },
+    { keys: ['meteor', 'shower'],              panel: 'motion-meteors-panel' },
+  ];
+
+  let motionPanel = null;
+  for (const { keys, panel } of motionMap) {
+    if (keys.some(k => id.includes(k) || name.includes(k))) { motionPanel = panel; break; }
+  }
+
+  if (motionPanel) {
+    const section = document.getElementById('card-motion');
+    if (section) {
+      section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      setTimeout(() => {
+        const tab = document.querySelector(`[data-panel="${motionPanel}"]`);
+        if (tab && !tab.classList.contains('active')) tab.click();
+        section.style.transition = 'box-shadow 0.4s ease';
+        section.style.boxShadow = '0 0 0 2px #a855f7, 0 0 32px rgba(168,85,247,0.45)';
+        setTimeout(() => { section.style.boxShadow = ''; }, 2000);
+      }, 400);
+    }
+    return;
+  }
+
+  // Deep-sky target
+  const cardTargets = document.getElementById('card-targets');
+  if (!cardTargets) return;
+  cardTargets.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  setTimeout(() => {
+    const normId = id.replace(/[^a-z0-9]/g, '');
+    let found = document.querySelector(`[data-target-id="${id}"]`) ||
+                document.querySelector(`[data-target-id="${normId}"]`);
+    if (!found) {
+      const cards = document.querySelectorAll('#targets-grid [data-target-id]');
+      for (const card of cards) {
+        if (card.textContent.toLowerCase().includes(name.slice(0, 8))) { found = card; break; }
+      }
+    }
+    const target = found || cardTargets;
+    if (found) target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    target.style.transition = 'box-shadow 0.4s ease';
+    target.style.boxShadow = '0 0 0 2px #a855f7, 0 0 28px rgba(168,85,247,0.5)';
+    setTimeout(() => { target.style.boxShadow = ''; }, 2000);
+  }, 500);
+};
+
 function renderNightPlan() {
   const emptyState = document.getElementById('scheduler-empty-state');
   const listContainer = document.getElementById('scheduler-list-container');
@@ -4303,7 +4359,13 @@ function renderNightPlan() {
           <div style="display: flex; align-items: center; gap: 10px;">
             <span style="font-weight: 700; color: #a855f7; font-size: 0.9rem;">#${idx + 1}</span>
             <div>
-              <div style="font-weight: 600; color: #fff; font-size: 0.9rem;">${item.name}</div>
+              <div
+                onclick="window.navigateToPlanItem(${idx})"
+                style="font-weight: 600; color: #fff; font-size: 0.9rem; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; transition: color 0.15s;"
+                onmouseover="this.style.color='#c084fc'"
+                onmouseout="this.style.color='#fff'"
+                title="Click to jump to this target's section"
+              >${item.name} <span style="font-size:0.7rem; opacity:0.5;">↗</span></div>
               <div style="font-size: 0.75rem; color: var(--text-dim); margin-top: 2px; display: flex; align-items: center; flex-wrap: wrap;">${(window.i18n[currentLang] || window.i18n['en']).lbl_scheduled_slot || 'Scheduled slot'}: <strong style="color: #e2e8f0; margin-left: 4px;">${item.startTime} - ${item.endTime}</strong> ${warningText}</div>
             </div>
           </div>
@@ -4355,10 +4417,10 @@ function renderNightPlan() {
   }
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-  renderNightPlan();
-  
-  document.getElementById('btn-clear-plan')?.addEventListener('click', () => {
+// app.js loads at bottom of <body> — DOM is already ready, bind directly
+renderNightPlan();
+
+document.getElementById('btn-clear-plan')?.addEventListener('click', () => {
     // Use a custom in-app confirm to avoid browser confirm() suppression
     const modal = document.createElement('div');
     modal.id = 'clear-plan-confirm-modal';

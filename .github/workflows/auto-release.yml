@@ -4,8 +4,6 @@ on:
   push:
     branches:
       - main
-    paths:
-      - 'package.json'
 
 permissions:
   contents: write
@@ -13,32 +11,45 @@ permissions:
 jobs:
   release:
     runs-on: ubuntu-latest
+    # Skip if the push was made by the bot itself (avoid infinite loop)
+    if: "!contains(github.event.head_commit.message, '[skip ci]') && github.actor != 'github-actions[bot]'"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract version
-        id: version
+      - name: Set up git identity
         run: |
-          VERSION=$(jq -r .version package.json)
-          echo "VERSION=$VERSION" >> $GITHUB_ENV
-          echo "Extracted version: $VERSION"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
 
-      - name: Check if tag exists
-        id: check_tag
+      - name: Bump patch version in package.json
+        id: bump
         run: |
-          if git ls-remote --tags origin "refs/tags/v${{ env.VERSION }}" | grep -q "refs/tags"; then
-            echo "TAG_EXISTS=true" >> $GITHUB_ENV
-            echo "Tag v${{ env.VERSION }} already exists."
-          else
-            echo "TAG_EXISTS=false" >> $GITHUB_ENV
-            echo "Tag v${{ env.VERSION }} does not exist."
-          fi
+          CURRENT=$(jq -r .version package.json)
+          echo "Current version: $CURRENT"
+
+          MAJOR=$(echo "$CURRENT" | cut -d. -f1)
+          MINOR=$(echo "$CURRENT" | cut -d. -f2)
+          PATCH=$(echo "$CURRENT" | cut -d. -f3)
+          NEW_PATCH=$((PATCH + 1))
+          NEW_VERSION="$MAJOR.$MINOR.$NEW_PATCH"
+
+          echo "New version: $NEW_VERSION"
+          echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
+
+          jq --arg v "$NEW_VERSION" '.version = $v' package.json > package.json.tmp
+          mv package.json.tmp package.json
+
+      - name: Commit version bump
+        run: |
+          git add package.json
+          git commit -m "chore: bump version to v${{ env.NEW_VERSION }} [skip ci]"
+          git push origin main
 
       - name: Generate changelog
-        if: env.TAG_EXISTS == 'false'
         id: changelog
         run: |
           LAST_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
@@ -51,20 +62,16 @@ jobs:
           echo "$LOG" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
-      - name: Create release commit and tag
-        if: env.TAG_EXISTS == 'false'
+      - name: Create git tag
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git tag -a "v${{ env.VERSION }}" -m "Release v${{ env.VERSION }}"
-          git push origin "v${{ env.VERSION }}"
+          git tag -a "v${{ env.NEW_VERSION }}" -m "Release v${{ env.NEW_VERSION }}"
+          git push origin "v${{ env.NEW_VERSION }}"
 
       - name: Create GitHub Release
-        if: env.TAG_EXISTS == 'false'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ env.VERSION }}
-          name: Release v${{ env.VERSION }}
+          tag_name: v${{ env.NEW_VERSION }}
+          name: Release v${{ env.NEW_VERSION }}
           body: |
             ## Changes since last release
 

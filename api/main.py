@@ -213,6 +213,81 @@ def get_moon():
     return response
 
 
+@app.get("/nasa/apod")
+def get_apod():
+    """NASA Astronomy Picture of the Day — cached 24h."""
+    cache_key = "nasa_apod"
+    cached = get_cache(cache_key)
+    if cached:
+        return JSONResponse(content=cached)
+    api_key = os.getenv("NASA_API_KEY", "DEMO_KEY")
+    url = f"https://api.nasa.gov/planetary/apod?api_key={api_key}"
+    try:
+        req = urllib.request.Request(url)
+        with urllib.request.urlopen(req, timeout=10) as response:  # nosec B310
+            data = json.loads(response.read().decode())
+            result = {
+                "title": data.get("title", ""),
+                "date": data.get("date", ""),
+                "explanation": data.get("explanation", ""),
+                "url": data.get("url", ""),
+                "hdurl": data.get("hdurl", data.get("url", "")),
+                "media_type": data.get("media_type", "image"),
+                "copyright": data.get("copyright", "NASA"),
+            }
+            set_cache(cache_key, result, ttl_seconds=86400)  # 24h
+            return JSONResponse(content=result)
+    except Exception as e:
+        print(f"APOD error: {e}")
+        return JSONResponse(status_code=503, content={"error": "APOD unavailable", "detail": str(e)})
+
+
+@app.get("/nasa/space-weather")
+def get_space_weather():
+    """NASA DONKI space weather events (CME + geomagnetic storms) — last 3 days, cached 3h."""
+    cache_key = "nasa_space_weather"
+    cached = get_cache(cache_key)
+    if cached:
+        return JSONResponse(content=cached)
+    api_key = os.getenv("NASA_API_KEY", "DEMO_KEY")
+    from datetime import timedelta
+    end_dt = datetime.now(ZoneInfo("UTC"))
+    start_dt = end_dt - timedelta(days=3)
+    start = start_dt.strftime("%Y-%m-%d")
+    end = end_dt.strftime("%Y-%m-%d")
+
+    events = []
+    for donki_type, url_path, label in [
+        ("CME", "CME", "CME"),
+        ("GST", "GST", "Geomagnetic Storm"),
+        ("FLR", "FLR", "Solar Flare"),
+    ]:
+        try:
+            url = f"https://api.nasa.gov/DONKI/{donki_type}?startDate={start}&endDate={end}&api_key={api_key}"
+            req = urllib.request.Request(url)
+            with urllib.request.urlopen(req, timeout=10) as r:  # nosec B310
+                items = json.loads(r.read().decode())
+                for item in items[-5:]:
+                    if donki_type == "CME":
+                        note = item.get("note", "Coronal Mass Ejection detected")
+                        t = item.get("startTime", "")
+                    elif donki_type == "GST":
+                        all_obs = item.get("allKpIndex", [])
+                        kp = f" (Kp {all_obs[-1].get('kpIndex', '')})" if all_obs else ""
+                        note = f"Geomagnetic storm{kp}"
+                        t = item.get("startTime", "")
+                    else:
+                        note = f"Solar flare class {item.get('classType', '?')}"
+                        t = item.get("beginTime", "")
+                    events.append({"type": label, "time": t, "note": note})
+        except Exception as e:
+            print(f"DONKI {donki_type} error: {e}")
+
+    result = {"events": sorted(events, key=lambda x: x["time"], reverse=True), "period_days": 3}
+    set_cache(cache_key, result, ttl_seconds=10800)  # 3h
+    return JSONResponse(content=result)
+
+
 @app.get("/api/asteroids")
 def get_asteroids():
     cache_key = "nasa_asteroids"
