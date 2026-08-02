@@ -2482,6 +2482,7 @@ function initLocationUI() {
   window.activateLocation = (id) => {
     localStorage.setItem('stargazer_active_loc', id);
     localStorage.removeItem('stargazer_bortle');
+    window.dispatchEvent(new CustomEvent('stargazer:locationSet', { detail: { id } }));
     location.reload(); // Refresh to apply changes instantly everywhere
   };
 
@@ -3038,7 +3039,8 @@ function initLocationUI() {
       err => {
         alert('Geolocation failed: ' + err.message);
         btn.textContent = '📡 Try Device GPS';
-      }
+      },
+      { timeout: 10000, maximumAge: 300000, enableHighAccuracy: false }
     );
   });
 }
@@ -3347,9 +3349,17 @@ async function init() {
             });
         },
         err => {
-          alert('Geolocation failed: ' + err.message);
+          console.warn('Geolocation failed:', err.message);
           if (icon) icon.style.stroke = 'currentColor';
-        }
+          const fallbackLoc = (savedLocations && savedLocations.length > 0) ? savedLocations[0] : DEFAULT_LOCATIONS[0];
+          if (!activeLoc || currentLat === null || currentLon === null) {
+            console.log('Falling back to default observatory location:', fallbackLoc.name);
+            activateLocation(fallbackLoc.id || 'default-mauna-kea');
+          } else {
+            alert('Geolocation failed: ' + err.message + '. Keeping active location.');
+          }
+        },
+        { timeout: 10000, maximumAge: 300000, enableHighAccuracy: false }
       );
     });
   }
@@ -4438,24 +4448,24 @@ function renderNightPlan() {
       const warningText = !startInDark ? '<span style="color: #f87171; font-weight: 600; margin-left: 6px;" title="This slot is outside astronomical dark hours for your location">⚠️ Outside dark window (Daylight/Twilight)</span>' : '';
 
       return `
-        <div style="display: flex; align-items: center; justify-content: space-between; padding: 12px; background: rgba(255,255,255,0.02); border-radius: 8px; border: 1px solid rgba(255,255,255,0.05); gap: 10px;">
-          <div style="display: flex; align-items: center; gap: 10px;">
-            <span style="font-weight: 700; color: #a855f7; font-size: 0.9rem;">#${idx + 1}</span>
-            <div>
+        <div style="display: flex; align-items: center; justify-content: space-between; padding: 12px; background: rgba(255,255,255,0.02); border-radius: 8px; border: 1px solid rgba(255,255,255,0.05); gap: 10px; overflow: hidden; min-width: 0;">
+          <div style="display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1; overflow: hidden;">
+            <span style="font-weight: 700; color: #a855f7; font-size: 0.9rem; white-space: nowrap;">#${idx + 1}</span>
+            <div style="min-width: 0; overflow: hidden;">
               <div
                 onclick="window.navigateToPlanItem(${idx})"
-                style="font-weight: 600; color: #fff; font-size: 0.9rem; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; transition: color 0.15s;"
+                style="font-weight: 600; color: #fff; font-size: 0.9rem; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; transition: color 0.15s; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"
                 onmouseover="this.style.color='#c084fc'"
                 onmouseout="this.style.color='#fff'"
                 title="Click to jump to this target's section"
               >${item.name} <span style="font-size:0.7rem; opacity:0.5;">↗</span></div>
-              <div style="font-size: 0.75rem; color: var(--text-dim); margin-top: 2px; display: flex; align-items: center; flex-wrap: wrap;">${(window.i18n[currentLang] || window.i18n['en']).lbl_scheduled_slot || 'Scheduled slot'}: <strong style="color: #e2e8f0; margin-left: 4px;">${item.startTime} - ${item.endTime}</strong> ${warningText}</div>
+              <div style="font-size: 0.75rem; color: var(--text-dim); margin-top: 2px; display: flex; align-items: center; flex-wrap: wrap; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${(window.i18n[currentLang] || window.i18n['en']).lbl_scheduled_slot || 'Scheduled slot'}: <strong style="color: #e2e8f0; margin-left: 4px;">${item.startTime} - ${item.endTime}</strong> ${warningText}</div>
             </div>
           </div>
-          <div style="display: flex; gap: 6px;">
-            <button class="filter-btn" data-move-plan-idx="${idx}" data-move-plan-dir="up" style="padding: 4px 8px;" ${idx === 0 ? 'disabled' : ''}>↑</button>
-            <button class="filter-btn" data-move-plan-idx="${idx}" data-move-plan-dir="down" style="padding: 4px 8px;" ${idx === nightPlan.length - 1 ? 'disabled' : ''}>↓</button>
-            <button class="filter-btn" data-remove-plan-idx="${idx}" style="padding: 4px 8px; background: rgba(239, 68, 68, 0.1); border-color: rgba(239, 68, 68, 0.2); color: #f87171;">${(window.i18n[currentLang] || window.i18n['en']).btn_remove || 'Remove'}</button>
+          <div style="display: flex; gap: 6px; flex-shrink: 0;">
+            <button class="filter-btn" data-move-plan-idx="${idx}" data-move-plan-dir="up" style="padding: 4px 8px; flex-shrink: 0;" ${idx === 0 ? 'disabled' : ''}>↑</button>
+            <button class="filter-btn" data-move-plan-idx="${idx}" data-move-plan-dir="down" style="padding: 4px 8px; flex-shrink: 0;" ${idx === nightPlan.length - 1 ? 'disabled' : ''}>↓</button>
+            <button class="filter-btn" data-remove-plan-idx="${idx}" style="padding: 4px 8px; background: rgba(239, 68, 68, 0.1); border-color: rgba(239, 68, 68, 0.2); color: #f87171; flex-shrink: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 80px;" title="Remove from plan">${(window.i18n[currentLang] || window.i18n['en']).btn_remove || 'Remove'}</button>
           </div>
         </div>
       `;
@@ -4503,31 +4513,53 @@ function renderNightPlan() {
 // app.js loads at bottom of <body> — DOM is already ready, bind directly
 renderNightPlan();
 
-document.getElementById('btn-clear-plan')?.addEventListener('click', () => {
-    // Use a custom in-app confirm to avoid browser confirm() suppression
-    const modal = document.createElement('div');
-    modal.id = 'clear-plan-confirm-modal';
-    modal.style.cssText = 'position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.7);backdrop-filter:blur(4px);';
-    modal.innerHTML = `
-      <div style="background:#1e1b2e;border:1px solid rgba(168,85,247,0.4);border-radius:14px;padding:28px 32px;max-width:380px;width:90%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.6);">
-        <div style="font-size:2rem;margin-bottom:12px;">🗑️</div>
-        <div style="font-size:1.05rem;font-weight:700;color:#fff;margin-bottom:8px;">Clear Night Plan?</div>
-        <div style="font-size:0.85rem;color:#94a3b8;margin-bottom:22px;">This will remove all ${nightPlan.length} item${nightPlan.length !== 1 ? 's' : ''} from your plan. This cannot be undone.</div>
-        <div style="display:flex;gap:12px;justify-content:center;">
-          <button id="clear-plan-cancel" style="padding:9px 24px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.07);color:#e2e8f0;cursor:pointer;font-size:0.9rem;font-weight:600;">Cancel</button>
-          <button id="clear-plan-confirm" style="padding:9px 24px;border-radius:8px;border:1px solid #ef4444;background:rgba(239,68,68,0.15);color:#f87171;cursor:pointer;font-size:0.9rem;font-weight:700;">Clear All</button>
+(function initClearPlanButton() {
+    const btn = document.getElementById('btn-clear-plan');
+    if (!btn) return;
+
+    let modalOpen = false;
+
+    function showModal() {
+      // Remove any existing stale modal to prevent stacking
+      const existing = document.getElementById('clear-plan-confirm-modal');
+      if (existing) existing.remove();
+
+      if (modalOpen) return;
+      modalOpen = true;
+
+      const modal = document.createElement('div');
+      modal.id = 'clear-plan-confirm-modal';
+      modal.style.cssText = 'position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.7);backdrop-filter:blur(4px);';
+      modal.innerHTML = `
+        <div style="background:#1e1b2e;border:1px solid rgba(168,85,247,0.4);border-radius:14px;padding:28px 32px;max-width:380px;width:90%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.6);">
+          <div style="font-size:2rem;margin-bottom:12px;">🗑️</div>
+          <div style="font-size:1.05rem;font-weight:700;color:#fff;margin-bottom:8px;">Clear Night Plan?</div>
+          <div style="font-size:0.85rem;color:#94a3b8;margin-bottom:22px;">This will remove all ${nightPlan.length} item${nightPlan.length !== 1 ? 's' : ''} from your plan. This cannot be undone.</div>
+          <div style="display:flex;gap:12px;justify-content:center;">
+            <button id="clear-plan-cancel" style="padding:9px 24px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.07);color:#e2e8f0;cursor:pointer;font-size:0.9rem;font-weight:600;">Cancel</button>
+            <button id="clear-plan-confirm" style="padding:9px 24px;border-radius:8px;border:1px solid #ef4444;background:rgba(239,68,68,0.15);color:#f87171;cursor:pointer;font-size:0.9rem;font-weight:700;">Clear All</button>
+          </div>
         </div>
-      </div>
-    `;
-    document.body.appendChild(modal);
-    modal.querySelector('#clear-plan-cancel').addEventListener('click', () => modal.remove());
-    modal.querySelector('#clear-plan-confirm').addEventListener('click', () => {
-      modal.remove();
-      nightPlan = [];
-      saveAndRenderPlan();
-    });
-    modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
-  });
+      `;
+
+      function closeModal() {
+        modal.remove();
+        modalOpen = false;
+      }
+
+      document.body.appendChild(modal);
+      modal.querySelector('#clear-plan-cancel').addEventListener('click', closeModal);
+      modal.querySelector('#clear-plan-confirm').addEventListener('click', () => {
+        modal.remove();
+        modalOpen = false;
+        nightPlan = [];
+        saveAndRenderPlan();
+      });
+      modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
+    }
+
+    btn.addEventListener('click', showModal);
+  })();
 
 
   document.getElementById('btn-export-txt')?.addEventListener('click', () => {
