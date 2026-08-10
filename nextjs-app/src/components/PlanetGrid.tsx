@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
-import { Orbit, Info } from "lucide-react";
+import Icon from "./Icon";
 import type { PlanetData } from "@/types";
 import { PLANET_TEXTURES } from "@/lib/constants";
 
@@ -142,7 +142,7 @@ export default function PlanetGrid({ planets = [] }: { planets?: PlanetData[] })
     <section className="card card-planets">
       {/* Card header */}
       <div className="card-header">
-        <Orbit className="h-5 w-5" strokeWidth={1.6} />
+        <Icon name="orbit" className="h-5 w-5" />
         <h2 className="text-[0.92rem] font-semibold text-zinc-100 tracking-wide">
           Planets Tonight
         </h2>
@@ -150,7 +150,7 @@ export default function PlanetGrid({ planets = [] }: { planets?: PlanetData[] })
           className="ml-1.5 flex cursor-pointer items-center"
           title="Calculated locally via Skyfield Ephemeris"
         >
-          <Info className="h-[14px] w-[14px] stroke-zinc-500/60" strokeWidth={1.5} />
+          <Icon name="info" className="h-[14px] w-[14px] stroke-zinc-500/60" />
         </span>
       </div>
 

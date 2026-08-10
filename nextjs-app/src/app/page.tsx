@@ -1,3 +1,4 @@
+import { cookies } from "next/headers";
 import SolarSystemHero from "@/components/SolarSystemHero";
 import StarfieldBackground from "@/components/StarfieldBackground";
 import PlanetGrid from "@/components/PlanetGrid";
@@ -15,16 +16,40 @@ import Resources from "@/components/Resources";
 import Footer from "@/components/Footer";
 import CardRow from "@/components/CardRow";
 import AiTargets from "@/components/AiTargets";
+import PlanMyNight from "@/components/PlanMyNight";
+import TelescopeCalculator from "@/components/TelescopeCalculator";
+import SolarSystemExplorerCard from "@/components/SolarSystemExplorerCard";
+import LightPollutionCard from "@/components/LightPollutionCard";
+import AuroraCard from "@/components/AuroraCard";
+import ApodCard from "@/components/ApodCard";
 import { fetchBackend } from "@/lib/api-proxy";
-import { REVALIDATE } from "@/lib/constants";
-import type { TonightReport, WeeklyReport, PlanetsResponse, ConstellationsResponse } from "@/types";
+import { REVALIDATE, LOCATION_COOKIE } from "@/lib/constants";
+import { parseLocationCookie } from "@/lib/location-cookie";
+import type {
+  TonightReport,
+  WeeklyReport,
+  PlanetsResponse,
+  ConstellationsResponse,
+  BortleInfo,
+  AuroraForecast,
+  SpaceWeatherReport,
+  ApodData,
+} from "@/types";
 
 export default async function Home() {
-  const [tonight, weekly, planetsData, constellationsData] = await Promise.all([
-    fetchBackend<TonightReport>("/tonight", "", REVALIDATE.tonight),
-    fetchBackend<WeeklyReport>("/weekly", "", REVALIDATE.weekly),
-    fetchBackend<PlanetsResponse>("/planets", "", REVALIDATE.planets),
-    fetchBackend<ConstellationsResponse>("/constellations", "", REVALIDATE.constellations),
+  const cookieStore = await cookies();
+  const coords = parseLocationCookie(cookieStore.get(LOCATION_COOKIE)?.value);
+  const locSearch = coords ? `?lat=${coords.lat}&lon=${coords.lon}` : "";
+
+  const [tonight, weekly, planetsData, constellationsData, bortle, aurora, spaceWeather, apod] = await Promise.all([
+    fetchBackend<TonightReport>("/tonight", locSearch, REVALIDATE.tonight),
+    fetchBackend<WeeklyReport>("/weekly", locSearch, REVALIDATE.weekly),
+    fetchBackend<PlanetsResponse>("/planets", locSearch, REVALIDATE.planets),
+    fetchBackend<ConstellationsResponse>("/constellations", locSearch, REVALIDATE.constellations),
+    fetchBackend<BortleInfo>("/api/bortle", locSearch, REVALIDATE.bortle),
+    fetchBackend<AuroraForecast>("/api/aurora", coords ? `?lat=${coords.lat}` : "", REVALIDATE.aurora),
+    fetchBackend<SpaceWeatherReport>("/nasa/space-weather", "", REVALIDATE.spaceWeather),
+    fetchBackend<ApodData>("/nasa/apod", "", REVALIDATE.apod),
   ]);
 
   return (
@@ -32,10 +57,10 @@ export default async function Home() {
       <StarfieldBackground />
       <SolarSystemHero />
       <div className="flex w-full flex-col items-center gap-8">
-        <div className="w-full max-w-5xl px-4 sm:px-8 py-8">
+        <div className="w-full max-w-[1600px] px-4 sm:px-8 py-8">
           <GoNoGoBanner seeing={tonight?.seeing ?? null} />
           <CardRow id="card-tonight">
-            <SeeingConditions seeing={tonight?.seeing ?? null} />
+            <SeeingConditions seeing={tonight?.seeing ?? null} twilight={tonight?.twilight_timeline} />
             <MoonCard moon={tonight?.moon ?? null} moonFact={tonight?.seeing?.moon_fact} />
             <SkyMotion />
           </CardRow>
@@ -44,8 +69,14 @@ export default async function Home() {
           <ActiveConstellation />
           <ConstellationsTonight constellations={constellationsData?.constellations} />
           <TargetDatabase />
+          <PlanMyNight />
           <WeeklyForecast report={weekly} />
-          <ClearOutsideEmbed />
+          <TelescopeCalculator />
+          <SolarSystemExplorerCard />
+          <LightPollutionCard bortle={bortle} />
+          <ClearOutsideEmbed coords={coords} />
+          <AuroraCard aurora={aurora} spaceWeather={spaceWeather} />
+          <ApodCard apod={apod} />
           <ObservationLog />
           <Resources />
           <Footer />

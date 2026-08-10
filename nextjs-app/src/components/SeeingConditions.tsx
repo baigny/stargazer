@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import useSWR from "swr";
-import { CloudSun, CheckSquare, Square } from "lucide-react";
-import type { SeeingData, AiSeeingResponse } from "@/types";
+import Icon from "./Icon";
+import type { SeeingData, AiSeeingResponse, TwilightTimeline } from "@/types";
 import { AI_SEEING_POLL_INTERVAL_MS, AI_SEEING_MAX_POLLS } from "@/lib/constants";
 
 const aiFetcher = (url: string) => fetch(url).then((r) => r.json());
@@ -56,7 +56,7 @@ function PreflightChecklist() {
   return (
     <div className="mt-4 pt-4 border-t border-white/10">
       <h3 className="flex items-center gap-2 text-sm font-semibold text-zinc-100 mb-3">
-        <CheckSquare className="h-4 w-4 text-green-400" strokeWidth={1.5} />
+        <Icon name="check-square" className="h-4 w-4 text-green-400" />
         Pre-Flight Checklist
       </h3>
       <div className="flex flex-col gap-1.5">
@@ -69,9 +69,9 @@ function PreflightChecklist() {
             }`}
           >
             {checked[c.id] ? (
-              <CheckSquare className="h-4 w-4 text-green-400 flex-shrink-0" strokeWidth={1.5} />
+              <Icon name="check-square" className="h-4 w-4 text-green-400 flex-shrink-0" />
             ) : (
-              <Square className="h-4 w-4 text-zinc-600 flex-shrink-0" strokeWidth={1.5} />
+              <Icon name="square" className="h-4 w-4 text-zinc-600 flex-shrink-0" />
             )}
             <span className={`text-xs ${checked[c.id] ? "text-zinc-300 line-through" : "text-zinc-400"}`}>
               {c.label}
@@ -88,7 +88,71 @@ function PreflightChecklist() {
   );
 }
 
-export default function SeeingConditions({ seeing: initialSeeing }: { seeing: SeeingData | null }) {
+function TwilightTimelineStrip({ twilight }: { twilight: TwilightTimeline }) {
+  const items = [
+    { icon: "sunset", color: "text-orange-400", value: twilight.sunset, label: "Sunset" },
+    { icon: "moon", color: "text-sky-400", value: twilight.astro_start, label: "Astro Start" },
+    { icon: "sun", color: "text-sky-400", value: twilight.astro_end, label: "Astro End" },
+    { icon: "sunrise", color: "text-orange-400", value: twilight.sunrise, label: "Sunrise" },
+  ] as const;
+  return (
+    <div className="mt-4 pt-2.5 border-t border-white/10">
+      <div className="flex items-center gap-1.5 text-xs text-white mb-2">
+        <Icon name="clock" className="h-3.5 w-3.5" /> Twilight Timeline
+      </div>
+      <div className="flex justify-between text-center text-xs text-zinc-400">
+        {items.map((it, i) => (
+          <div key={i}>
+            <Icon name={it.icon} className={`h-4 w-4 mx-auto mb-1 ${it.color}`} />
+            <div className="font-semibold text-white">{it.value ?? "--:--"}</div>
+            <div>{it.label}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function HourlyCloudChart({ hourlyClouds }: { hourlyClouds: number[] }) {
+  return (
+    <div className="mt-4 pt-2.5 border-t border-white/10">
+      <div className="flex items-center justify-between text-xs text-white mb-2">
+        <span className="flex items-center gap-1.5">
+          <Icon name="bar-chart-2" className="h-3.5 w-3.5" /> Cloud Forecast (24h)
+        </span>
+        <span className="text-[0.7rem] text-zinc-400">
+          <span className="text-green-500">●</span> Clear <span className="text-red-500 ml-1">●</span> Overcast
+        </span>
+      </div>
+      <div className="flex items-end gap-0.5 h-10">
+        {hourlyClouds.map((pct, i) => (
+          <div
+            key={i}
+            className="flex-1 rounded-t-sm"
+            title={`${pct}%`}
+            style={{
+              height: `${Math.max(pct, 4)}%`,
+              backgroundColor: `hsl(${Math.round((1 - pct / 100) * 120)}, 70%, 50%)`,
+            }}
+          />
+        ))}
+      </div>
+      <div className="flex justify-between text-[0.65rem] text-zinc-400 mt-1">
+        <span>Now</span>
+        <span>+12h</span>
+        <span>+24h</span>
+      </div>
+    </div>
+  );
+}
+
+export default function SeeingConditions({
+  seeing: initialSeeing,
+  twilight,
+}: {
+  seeing: SeeingData | null;
+  twilight?: TwilightTimeline;
+}) {
   const seeing = useAiSeeing(initialSeeing);
 
   if (!seeing) {
@@ -109,7 +173,7 @@ export default function SeeingConditions({ seeing: initialSeeing }: { seeing: Se
   return (
     <div className="card card-body flex flex-col h-full">
       <div className="flex items-center gap-2 mb-3">
-        <CloudSun className="h-5 w-5 text-sky-400" strokeWidth={1.6} />
+        <Icon name="cloud-sun" className="h-5 w-5 text-sky-400" />
         <h3 className="text-[0.92rem] font-semibold text-zinc-100 tracking-wide">Conditions</h3>
         {seeing.ai_powered && (
           <span className="ml-auto rounded border border-purple-500/30 bg-purple-500/15 px-2 py-0.5 text-[0.65rem] font-medium text-purple-400">
@@ -132,6 +196,10 @@ export default function SeeingConditions({ seeing: initialSeeing }: { seeing: Se
 
       {seeing.seeing_explanation && (
         <p className="text-xs text-zinc-300 mb-2 leading-relaxed">{seeing.seeing_explanation}</p>
+      )}
+
+      {seeing.best_window && (
+        <p className="text-xs text-sky-300 mb-2">🔭 Best window: {seeing.best_window}</p>
       )}
 
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-2 pt-3 border-t border-white/5 flex-1">
@@ -173,6 +241,9 @@ export default function SeeingConditions({ seeing: initialSeeing }: { seeing: Se
           ))}
         </div>
       )}
+
+      {twilight && <TwilightTimelineStrip twilight={twilight} />}
+      {seeing.hourly_clouds && seeing.hourly_clouds.length > 0 && <HourlyCloudChart hourlyClouds={seeing.hourly_clouds} />}
 
       <PreflightChecklist />
     </div>

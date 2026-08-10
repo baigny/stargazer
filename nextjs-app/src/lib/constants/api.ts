@@ -12,6 +12,11 @@ export const REVALIDATE = {
   iss: 300,
   asteroids: 300,
   galleryCounts: 120,
+  apod: 86400,
+  spaceWeather: 10800,
+  aurora: 3600,
+  bortle: 3600,
+  meteors: 3600,
 } as const;
 
 /** AI seeing-analysis client polling (SeeingConditions) — mirrors legacy fetchAIAnalysis(). */
@@ -20,3 +25,6 @@ export const AI_SEEING_MAX_POLLS = 30; // ~5 minutes
 
 /** API health badge polling (Header). */
 export const HEALTH_POLL_INTERVAL_MS = 30_000;
+
+/** Header HUD moon/weather readout polling. */
+export const HUD_POLL_INTERVAL_MS = 60_000;

@@ -1,19 +1,25 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import useSWR from "swr";
 import { useLocale, useTranslations } from "next-intl";
-import { Telescope, Info, Menu, Flashlight } from "lucide-react";
+import Icon from "./Icon";
 import {
   HEALTH_POLL_INTERVAL_MS,
+  HUD_POLL_INTERVAL_MS,
   NAV_LINKS,
   LANG_OPTIONS,
   LOCALE_COOKIE,
   UNITS_STORAGE_KEY,
   STARGAZER_REPO_URL,
+  RESOURCES,
 } from "@/lib/constants";
-import type { Locale } from "@/types";
+import type { Locale, TonightReport } from "@/types";
 import Modal from "./Modal";
+import LocationControl from "./LocationControl";
+import DataSettingsModal from "./DataSettingsModal";
+import { startOnboardingTour } from "./OnboardingTour";
 
 const healthFetcher = (url: string) => fetch(url).then((r) => {
   if (!r.ok) throw new Error(`HTTP ${r.status}`);
@@ -35,12 +41,55 @@ export default function Header() {
   });
   const isChecking = !health && !healthError;
   const isLive = !healthError && health?.status === "ok";
+  const { data: tonight } = useSWR<TonightReport>("/api/tonight", healthFetcher, {
+    refreshInterval: HUD_POLL_INTERVAL_MS,
+    revalidateOnFocus: false,
+  });
   const [currentTime, setCurrentTime] = useState("--:-- --");
   const [currentDate, setCurrentDate] = useState("Loading...");
   const [nightMode, setNightMode] = useState(false);
   const [isMetric, setIsMetric] = useState(true);
   const [aboutOpen, setAboutOpen] = useState(false);
+  const [dataSettingsOpen, setDataSettingsOpen] = useState(false);
+  const [resourcesExpanded, setResourcesExpanded] = useState(false);
+  const [resourcesFlyoutStyle, setResourcesFlyoutStyle] = useState<{ top: number; right: number; maxHeight: number } | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const resourcesBtnRef = useRef<HTMLButtonElement>(null);
+
+  // Anchor the flyout to the trigger's real on-screen position (like Radix/shadcn's
+  // DropdownMenu does), clamped so it always stays fully within the viewport.
+  function openResourcesFlyout() {
+    const rect = resourcesBtnRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const margin = 8;
+    const top = Math.min(rect.top, window.innerHeight - margin);
+    setResourcesFlyoutStyle({
+      top,
+      right: window.innerWidth - rect.left + margin,
+      maxHeight: window.innerHeight - top - margin,
+    });
+    setResourcesExpanded(true);
+  }
+
+  // Live HUD readouts — mirrors legacy web/app.js's hud-moon/hud-weather population.
+  const moon = tonight?.moon;
+  const hudMoon = moon
+    ? (() => {
+        const icon = moon.phase_name ? moon.phase_name.split(" ")[0] : "🌙";
+        const phaseNameOnly = (moon.phase_name ?? "").replace(icon, "").trim();
+        return `${icon} ${phaseNameOnly} (${moon.illumination_pct ?? "?"}%)`;
+      })()
+    : "🌙 --";
+  const seeing = tonight?.seeing;
+  const hudWeather = seeing
+    ? (() => {
+        const tVal = seeing.tonight_temp_c;
+        const tempStr = tVal != null ? (isMetric ? `${tVal}°C` : `${Math.round((tVal * 9) / 5 + 32)}°F`) : "--";
+        const wVal = seeing.tonight_wind_kmh;
+        const windStr = wVal != null ? (isMetric ? `${wVal} km/h` : `${Math.round(wVal * 0.621371)} mph`) : "--";
+        return `🌡️ ${tempStr} | 💨 ${windStr}`;
+      })()
+    : "🌡️ -- | 💨 --";
 
   // Hydrate the unit system from localStorage — can't be a lazy useState initializer
   // without a hydration mismatch, since localStorage doesn't exist during SSR.
@@ -95,65 +144,61 @@ export default function Header() {
   }, [nightMode]);
 
   return (
-    <header className="sticky top-0 z-[100] border-b border-white/10 bg-slate-950/90 py-3.5 px-8 backdrop-blur-xl">
-      <div className="mx-auto flex max-w-full items-center justify-between gap-4 px-4">
+    <header className="sticky top-0 z-[100] border-b border-white/10 bg-slate-950/90 py-3 px-6 backdrop-blur-xl">
+      <div className="mx-auto flex max-w-full flex-nowrap items-center justify-between gap-4">
         {/* Logo */}
-        <div className="flex items-center gap-3.5">
-          <Telescope className="h-6 w-6 animate-float text-sky-400 drop-shadow-[0_0_12px_rgba(74,158,255,0.5)]" strokeWidth={1.5} />
-          <div className="flex flex-col items-start">
-            <span className="bg-gradient-to-br from-white to-zinc-400 bg-clip-text text-[1.4rem] font-bold leading-tight tracking-tight text-transparent"
-              style={{ fontFamily: "'Space Grotesk', system-ui, sans-serif" }}
-            >
-              StarGazer
+        <a href="#hero-section" className="flex flex-shrink-0 items-center gap-2.5 no-underline">
+          <Icon name="telescope" className="h-6 w-6 animate-float text-sky-400 drop-shadow-[0_0_12px_rgba(74,158,255,0.5)]" />
+          <span
+            className="whitespace-nowrap bg-gradient-to-br from-white to-zinc-400 bg-clip-text text-[1.4rem] font-bold leading-tight tracking-tight text-transparent"
+            style={{ fontFamily: "'Space Grotesk', system-ui, sans-serif" }}
+          >
+            StarGazer
+          </span>
+        </a>
+
+        {/* Telemetry pill — allowed to shrink/truncate so it never pushes the menu button off-screen */}
+        <div className="hidden min-w-0 flex-1 items-center gap-3 overflow-hidden rounded-full border border-white/10 bg-white/5 px-4 py-1.5 lg:flex">
+          <div className="flex flex-shrink-0 items-center gap-1.5 text-[0.7rem] font-bold tracking-[0.12em]">
+            <span
+              className={`inline-block h-1.5 w-1.5 rounded-full ${
+                isChecking ? "bg-zinc-500" : isLive ? "animate-pulse bg-green-500" : "bg-red-500"
+              }`}
+            />
+            <span className={isChecking ? "text-zinc-400" : isLive ? "text-green-500" : "text-red-500"}>
+              {isChecking ? "..." : isLive ? "LIVE" : "OFFLINE"}
             </span>
-            <span className="text-[0.75rem] text-sky-400/80 transition-opacity hover:opacity-100 hover:underline cursor-pointer">
-              {t("app_slogan")}
-            </span>
-            <div className="mt-2 flex flex-col items-start gap-0.5">
-              <span className="text-[0.7rem] font-semibold text-zinc-400">{t("loading_loc")}</span>
-              <span className="font-mono text-[0.75rem] text-zinc-500/60 tracking-widest">Lat: --, Lon: --</span>
-            </div>
           </div>
+          <span className="h-4 w-px flex-shrink-0 bg-white/10" />
+          <span id="hud-moon" className="flex-shrink-0 truncate font-mono text-[0.75rem] text-slate-400">{hudMoon}</span>
+          <span className="h-4 w-px flex-shrink-0 bg-white/10" />
+          <span id="hud-weather" className="flex-shrink-0 truncate font-mono text-[0.75rem] text-slate-400">{hudWeather}</span>
+          <span className="h-4 w-px flex-shrink-0 bg-white/10" />
+          <LocationControl />
         </div>
 
         {/* Right side */}
-        <div className="flex items-center gap-5">
-          {/* Telemetry group */}
-          <div className="flex items-center gap-7 border-r border-white/10 pr-4">
-            {/* API status badge */}
-            <div
-              className={`hidden items-center gap-1.5 rounded-full border px-3 py-1 text-[0.7rem] font-bold tracking-[0.12em] md:flex ${
-                isChecking
-                  ? "border-white/10 bg-white/5 text-zinc-400"
-                  : isLive
-                    ? "border-green-500/30 bg-green-500/10 text-green-500"
-                    : "border-red-500/30 bg-red-500/10 text-red-500"
-              }`}
-            >
-              <span
-                className={`inline-block h-1.5 w-1.5 rounded-full ${
-                  isChecking ? "bg-zinc-500" : isLive ? "animate-pulse bg-green-500" : "bg-red-500"
-                }`}
-              />
-              {isChecking ? "..." : isLive ? "LIVE" : "OFFLINE"}
-            </div>
-
-            {/* Moon & weather */}
-            <div className="flex items-center gap-3 font-mono text-[0.75rem] text-slate-400">
-              <span id="hud-moon">🌙 --</span>
-              <span id="hud-weather">🌡️ -- | 💨 --</span>
-            </div>
-
-            {/* Clock */}
-            <div className="hidden items-center gap-2 font-mono md:flex">
-              <span id="clock" className="text-[0.85rem]">{currentTime}</span>
-              <span id="date-display" className="text-[0.75rem] text-zinc-400">{currentDate}</span>
-            </div>
+        <div className="flex flex-shrink-0 items-center gap-4">
+          {/* Clock */}
+          <div className="hidden items-center gap-2 whitespace-nowrap font-mono md:flex">
+            <span id="clock" className="text-[0.85rem]">{currentTime}</span>
+            <span id="date-display" className="text-[0.75rem] text-zinc-400">{currentDate}</span>
           </div>
 
           {/* Controls */}
-          <div className="flex items-center gap-2">
+          <div className="flex flex-shrink-0 items-center gap-2">
+            <a
+              href={`${STARGAZER_REPO_URL}/issues`}
+              target="_blank"
+              rel="noopener"
+              className="hidden md:inline-flex items-center gap-1 rounded-lg border border-sky-500/30 bg-sky-500/10 px-3 py-1.5 text-xs font-medium text-sky-300 hover:bg-sky-500/20 transition-colors mr-1"
+            >
+              Collaborate
+              <Icon name="arrow-up-right" className="h-3 w-3" />
+            </a>
+
             <button
+              id="btn-night-mode"
               onClick={() => setNightMode((v) => !v)}
               className={`flex h-9 w-9 items-center justify-center rounded-lg border transition ${
                 nightMode
@@ -162,7 +207,7 @@ export default function Header() {
               }`}
               title="Night Vision Mode"
             >
-              <Flashlight className="h-4 w-4" strokeWidth={1.5} />
+              <Icon name="flashlight" className="h-4 w-4" />
             </button>
 
             <button
@@ -185,26 +230,27 @@ export default function Header() {
             </select>
 
             <button
-              onClick={() => setAboutOpen(true)}
+              id="btn-about"
+              onClick={() => startOnboardingTour()}
               className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 bg-white/5 text-zinc-200 transition hover:bg-purple-600/20 hover:border-purple-500/50"
-              title={t("about_title")}
+              title="Dashboard Tour"
             >
-              <Info className="h-4 w-4" strokeWidth={1.5} />
+              <Icon name="info" className="h-4 w-4" />
             </button>
 
             {/* Menu button + dropdown */}
             <div className="relative" ref={menuRef}>
               <button
-                className="flex h-9 items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3.5 text-sm font-semibold uppercase tracking-wider text-zinc-200 transition hover:bg-purple-600/20 hover:border-purple-500/50"
+                id="btn-menu"
+                className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 bg-white/5 text-zinc-200 transition hover:bg-purple-600/20 hover:border-purple-500/50"
                 onClick={() => setMenuOpen(!menuOpen)}
                 title="Navigation"
               >
-                <Menu className="h-[18px] w-[18px]" strokeWidth={1.5} />
-                <span className="hidden text-[0.8rem] font-semibold uppercase tracking-wider md:inline">Menu</span>
+                <Icon name="menu" className="h-[18px] w-[18px]" />
               </button>
 
               {menuOpen && (
-                <div className="absolute right-0 top-[45px] z-[9999] min-w-[200px] rounded-lg border border-purple-500/40 bg-[rgba(20,20,30,0.95)] p-2 shadow-[0_8px_24px_rgba(0,0,0,0.8)] backdrop-blur-md">
+                <div className="fixed right-4 top-[60px] z-[9999] max-h-[calc(100vh-80px)] min-w-[200px] overflow-y-auto rounded-lg border border-purple-500/40 bg-[rgba(20,20,30,0.95)] p-2 shadow-[0_8px_24px_rgba(0,0,0,0.8)] backdrop-blur-md">
                   {/* Mobile-only clock + lang inside dropdown */}
                   <div className="mb-2 block border-b border-white/10 pb-2 font-mono text-[0.8rem] text-slate-400 md:hidden">
                     <div className="text-zinc-200">{currentTime}</div>
@@ -228,15 +274,69 @@ export default function Header() {
                       className="block rounded px-4 py-2.5 text-[0.9rem] text-zinc-200 transition hover:bg-purple-600/20 hover:text-white"
                       onClick={() => setMenuOpen(false)}
                     >
-                      {t(link.key)}
+                      {"label" in link ? link.label : t(link.key)}
                     </a>
                   ))}
+
+                  <button
+                    onClick={() => {
+                      setMenuOpen(false);
+                      setDataSettingsOpen(true);
+                    }}
+                    className="block w-full rounded px-4 py-2.5 text-left text-[0.9rem] text-zinc-200 transition hover:bg-purple-600/20 hover:text-white"
+                  >
+                    💾 Data &amp; Settings
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setMenuOpen(false);
+                      setAboutOpen(true);
+                    }}
+                    className="block w-full rounded px-4 py-2.5 text-left text-[0.9rem] text-zinc-200 transition hover:bg-purple-600/20 hover:text-white"
+                  >
+                    ℹ️ About StarGazer
+                  </button>
+
+                  <div>
+                    <button
+                      ref={resourcesBtnRef}
+                      onClick={() => (resourcesExpanded ? setResourcesExpanded(false) : openResourcesFlyout())}
+                      className="flex w-full items-center justify-between rounded px-4 py-2.5 text-left text-[0.9rem] text-zinc-200 transition hover:bg-purple-600/20 hover:text-white"
+                    >
+                      Resources
+                      <Icon name="chevron-right" className="h-3.5 w-3.5 rotate-180" />
+                    </button>
+                    {resourcesExpanded && resourcesFlyoutStyle && createPortal(
+                      <div
+                        className="fixed z-[10000] min-w-[200px] overflow-y-auto rounded-lg border border-indigo-500/30 bg-[rgba(15,23,42,0.95)] p-2 shadow-[0_8px_32px_rgba(0,0,0,0.4)] backdrop-blur-md"
+                        style={{ top: resourcesFlyoutStyle.top, right: resourcesFlyoutStyle.right, maxHeight: resourcesFlyoutStyle.maxHeight }}
+                        onMouseDown={(e) => e.stopPropagation()}
+                      >
+                        {RESOURCES.map((r) => (
+                          <a
+                            key={r.url}
+                            href={r.url}
+                            target="_blank"
+                            rel="noopener"
+                            className="block rounded px-3 py-2 text-[0.8rem] text-zinc-400 transition hover:bg-white/5 hover:text-white"
+                            onClick={() => setMenuOpen(false)}
+                          >
+                            {r.icon} {r.name}
+                          </a>
+                        ))}
+                      </div>,
+                      document.body
+                    )}
+                  </div>
                 </div>
               )}
             </div>
           </div>
         </div>
       </div>
+
+      <DataSettingsModal open={dataSettingsOpen} onClose={() => setDataSettingsOpen(false)} />
 
       <Modal open={aboutOpen} onClose={() => setAboutOpen(false)} title={t("about_title")}>
         <div className="flex flex-col gap-3 text-sm text-zinc-300">

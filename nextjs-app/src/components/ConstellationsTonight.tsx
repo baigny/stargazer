@@ -1,4 +1,4 @@
-import { Star } from "lucide-react";
+import Icon from "./Icon";
 import type { ConstellationData } from "@/types";
 
 export default function ConstellationsTonight({
@@ -14,7 +14,7 @@ export default function ConstellationsTonight({
   return (
     <section id="card-constellations" className="card w-full">
       <div className="card-header">
-        <Star className="h-5 w-5 text-amber-400" strokeWidth={1.6} />
+        <Icon name="star" className="h-5 w-5 text-amber-400" />
         <h2>Constellations Tonight</h2>
       </div>
       <div className="card-body">
