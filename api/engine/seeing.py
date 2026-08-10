@@ -686,5 +686,5 @@ def get_seeing_forecast(lat=None, lon=None, ai_enabled: bool = False, lang: str 
         "clearoutside_embed": f"https://clearoutside.com/forecast_embed/{use_lat}/{use_lon}",
         "week_forecast": week_summary,
         "seeing_arcsec": seeing_arcsec,
-        "hourly_clouds": hourly.get("cloudcover", [])[:24],
+        "hourly_clouds": (hourly.get("cloudcover", []) or [])[current_hour:current_hour+24],
     }

@@ -751,6 +751,7 @@ function renderSeeing(seeing, data) {
       const bar = document.createElement('div');
       bar.style.flex = '1';
       // Map 0% cloud -> green, 100% -> red
+      if (cloudPct == null) { bar.style.display = 'none'; return; }  // skip missing data
       let color = '#22c55e'; // clear
       if (cloudPct > 20) color = '#eab308'; // partly cloudy
       if (cloudPct > 60) color = '#ef4444'; // overcast
