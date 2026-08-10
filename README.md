@@ -39,17 +39,17 @@ Getting started with amateur astronomy can be overwhelming. Commercial star char
 ### 🌌 Observing & Targets
 * **🌃 Dynamic Bortle Filtering:** Filters out faint, washed-out targets based on your current Bortle Class (1–9).
 * **🎯 Curated Target Cards:** Focuses only on beginner-friendly "Must-See" deep-sky targets (Orion Nebula, Pleiades, Andromeda) with visual thumbnails and difficulty badges.
-* **🔭 Optics Simulator & FOV Calculator:** Input custom telescope/eyepiece fields of view or select presets (Seestar S50, wide/telephoto DSLRs) to draw rectangular and circular FOV boundary overlays on targets using Aladin Lite (DSS2 imagery).
+* **🔭 Optics Simulator & FOV Calculator:** Input custom telescope/eyepiece fields of view or select presets (Seestar S50, wide/telephoto DSLRs) to draw rectangular and circular FOV boundary overlays directly on the sky map.
 * **📅 Plan My Night Timeline Scheduler:** Queue deep-sky targets, planets, and the Moon into a visual observing timeline. Reorder objects and export your session plan to Text or CSV files.
-* **🗺️ Constellation Explorer & Planetarium:** An interactive D3-based star map. Filter through the 88 constellations instantly using the integrated **Constellation Search** bar. Click on any star to query the professional astronomical **SIMBAD database** for live Spectral Type and Distance data.
+* **🗺️ Constellation Explorer & Planetarium:** An interactive D3-based star map. Filter through the 88 constellations instantly using the integrated **Constellation Search** bar. Click on any constellation to open rich discovery cards with mythology, Messier objects, best season, and bright-star highlights.
 
 ### 🌤️ Weather & Astronomy Engines
-* **🧠 AI Seeing Analysis & Fallback Planner:** Aggregates live cloud, humidity, temperature, and upper-atmosphere wind data to output a definitive "GO / NO GO" verdict via **Google Gemini**. If conditions are poor, the AI generates personalized **fallback suggestions** for indoor astronomy activities.
-* **📸 Community Gallery & Safe Uploads:** Visitors can share astrophotos via the UI. Images are compressed client-side before upload and pass through an AI safety verification step (optional, depending on `AI_API_KEY`) before being hosted by the backend.
+* **🧠 AI Seeing Analysis & Fallback Planner:** Aggregates live cloud, humidity, temperature, and upper-atmosphere wind data to output a definitive "GO / NO GO" verdict via **Google Gemini**. If AI is unavailable, the app transparently falls back to deterministic rule-based seeing scores.
+* **📸 Community Gallery & Safe Uploads:** Visitors can share astrophotos via the UI. Images are compressed client-side before upload and pass through an AI safety verification step (optional, disabled when AI keys are absent).
 * **🛠️ UI Robustness Improvements:** Improved the AI "Must-See & AI Picks" fallback behavior and fixed Add-to-Plan button handling so actions work reliably for dynamically injected content.
-* **📅 Event of the Night Integration:** Automatically alerts you to major astronomical events happening tonight (e.g., meteor shower peaks, equinoxes, alignments) with a quick **"Add to Plan +"** option to schedule them.
+* **📅 Event of the Night Integration:** Automatically alerts you to major astronomical events happening tonight (e.g., meteor shower peaks, equinoxes, alignments) with a quick **"Add to Plan +"** action.
 * **🪐 Planet Tracker:** Computes real-time altitude, azimuth, magnitude, constellation location, and light travel time for the naked-eye planets.
-* **⚡ Aurora & Space Weather Monitor:** Displays planetary Kp-index readings, solar storm warnings, and active alert feeds in real-time from NOAA SWPC, predicting local aurora visibility probability based on latitude.
+* **⚡ Aurora & Space Weather Monitor:** Displays planetary Kp-index readings, solar storm warnings, and active alert feeds in real-time from NOAA SWPC, predicting local aurora visibility probability.
 * **☄️ 3D Interactive Solar System:** Embeds NASA's official 3D planetary orrery simulator.
 * **🛰️ Space Trackers:** Includes an **ISS Flyover Tracker** (predicts visible passes for the next 10 days), **Meteor Shower Monitor**, and a **NASA Near-Earth Object (NEO) Radar**.
 
@@ -57,7 +57,7 @@ Getting started with amateur astronomy can be overwhelming. Commercial star char
 * **🔴 Night Vision Mode:** A one-click toggle tinting the entire UI dark red to preserve your eyes' rhodopsin adaptation in the dark.
 * **📱 Responsive Target Grid:** Target database cards automatically scale and flow in a beautiful grid layout dynamically adjusted for mobile, tablet, and desktop viewports.
 * **📱 Progressive Web App (PWA):** Install it directly to your home screen with offline caching.
-* **🔔 Native & Local Push Alerts:** Subscribe to native OS push notifications for ISS passes, auroras, and clearing skies. Also schedules local PWA browser alerts exactly when scheduled observing slots in your night plan begin!
+* **🔔 Native & Local Push Alerts:** Subscribe to native OS push notifications for ISS passes, auroras, and clearing skies. Also schedules local PWA browser alerts exactly when scheduled observing targets rise.
 * **🌍 100% Internationalized:** Localized in English, Spanish, and Portuguese.
 * **🏎️ CI Performance Gated:** Lighthouse quality checks run in CI before deploy (with enforced performance/best-practices thresholds and accessibility warnings).
 
@@ -72,7 +72,7 @@ graph TD
     CR -->|Astrometrics| SF[(Skyfield Engine)]
     CR -->|Weather Forecast| OM[Open-Meteo API]
     CR -->|Star Scanning| SB[SIMBAD TAP Database]
-    CR -.->|AI Seeing Report (optional)| GM[Gemini / LLM API]
+    CR -.->|AI Seeing Report optional| GM[Gemini / LLM API]
     CR -->|Asteroids| NS[NASA NeoWs API]
 ```
 
@@ -143,7 +143,7 @@ Open `http://localhost:8000`. The frontend will automatically detect the localho
 
 The backend API reads the following variables (configured in your `.env` file locally or in the Cloud Run console).
 
-> **🔒 Security:** This repository contains **no API keys or secrets**. All API keys below must be supplied by **you** in your own `.env` file or deployment environment. Never commit `.env` files or real credentials to version control.
+> **🔒 Security:** This repository contains **no API keys or secrets**. All API keys below must be supplied by **you** in your own `.env` file or deployment environment. Never commit `.env` files.
 
 ### Required for Core Functionality (No API Keys Needed)
 The app works **without any AI or third-party API keys** — it falls back to free public APIs:
@@ -159,7 +159,7 @@ The app works **without any AI or third-party API keys** — it falls back to fr
 | `DB_DIR` | Path to SQLite database directory (Cloud Run: `/mnt/db`) | `../` |
 
 ### Optional: AI Insights (Extra Feature)
-> 🧠 **AI insights are optional.** If you don't set these, the app uses **rule-based scoring** from free public weather data (Open-Meteo) and works perfectly fine. Only set these if you want AI-generated descriptions and personalized recommendations.
+> 🧠 **AI insights are optional.** If you don't set these, the app uses **rule-based scoring** from free public weather data (Open-Meteo) and works perfectly fine. Only set these if you want AI-generated seeing commentary.
 
 | Variable | Description | Example |
 | :--- | :--- | :--- |
@@ -171,7 +171,7 @@ The app works **without any AI or third-party API keys** — it falls back to fr
 | `FALLBACK_AI_MODEL` *(optional)* | Backup AI model | |
 | `FALLBACK_AI_API_KEY` *(optional)* | Backup AI API key | |
 
-**How it works:** When AI vars are unset, the API returns `ai_powered: false` and the frontend gracefully shows "📐 Rule-based" with all core weather charts and seeing scores intact. No errors, no broken UI.
+**How it works:** When AI vars are unset, the API returns `ai_powered: false` and the frontend gracefully shows "📐 Rule-based" with all core weather charts and seeing scores intact. No errors, no setup friction.
 
 ### Optional: Push Notifications
 | Variable | Description |
