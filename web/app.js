@@ -746,6 +746,10 @@ function renderSeeing(seeing, data) {
       }
     }
 
+    // Determine overall conditions to inform bar coloring
+    const gn = seeing.go_nogo || '';
+    const isPoor = !gn.includes('GO') || gn.includes('NO') || gn.includes('MARGINAL');
+    
     // Draw 24 bars
     seeing.hourly_clouds.forEach((cloudPct, i) => {
       const bar = document.createElement('div');
@@ -756,18 +760,30 @@ function renderSeeing(seeing, data) {
       if (cloudPct > 20) color = '#eab308'; // partly cloudy
       if (cloudPct > 60) color = '#ef4444'; // overcast
       
+      // When overall conditions are poor/marginal (due to humidity, dew spread, etc.),
+      // dim the bars so they don't contradict the banner's NO GO status.
+      // Low clouds with bad transparency should look muted, not bright green.
+      let opacity = '0.9';
+      if (isPoor && cloudPct <= 20) {
+        color = '#78a83f'; // muted yellow-green instead of bright green
+        opacity = '0.6';
+      } else if (isPoor && cloudPct > 20 && cloudPct <= 60) {
+        color = '#b8960a'; // darker amber instead of bright yellow
+        opacity = '0.7';
+      }
+      
       const h = Math.max(10, cloudPct); 
       bar.style.height = `${h}%`;
       bar.style.backgroundColor = color;
       bar.style.borderRadius = '2px 2px 0 0';
-      bar.style.opacity = '0.9';
+      bar.style.opacity = opacity;
       
       const hourVal = (startHour + i) % 24;
       const ampm = hourVal >= 12 ? 'pm' : 'am';
       const hr12 = hourVal % 12 || 12;
       const timeStr = `${hr12}${ampm}`;
       
-      bar.title = `${timeStr} - ${cloudPct}% cloud cover`;
+      bar.title = `${timeStr} - ${cloudPct}% cloud cover${isPoor ? ' (overall conditions poor)' : ''}`;
       hcChart.appendChild(bar);
       
       // Add labels every 4 hours + last hour
