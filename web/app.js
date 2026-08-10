@@ -535,7 +535,19 @@ async function fetchAIAnalysis(pollCount = 0) {
         renderSeeing(aiData, null);
       }
     } else {
-      throw new Error('AI returned rule-based fallback');
+      // AI not configured — use rule-based response; not an error
+      if (engineBadgeEl) {
+        engineBadgeEl.textContent = '📐 Rule-based';
+        engineBadgeEl.className = 'seeing-engine-badge rule';
+        engineBadgeEl.title = 'AI insights disabled — showing rule-based metrics. Set AI_API_KEY to enable AI analysis.';
+      }
+      if (window.lastTonightData) {
+        window.lastTonightData.seeing = aiData;
+        renderGoNogo(window.lastTonightData);
+        renderSeeing(aiData, window.lastTonightData);
+      } else {
+        renderSeeing(aiData, null);
+      }
     }
   } catch(e) {
     console.warn("AI Fetch failed", e);

@@ -28,7 +28,7 @@
 Getting started with amateur astronomy can be overwhelming. Commercial star charts and apps are packed with complex coordinates, grids, and settings that can deter beginners.
 
 **StarGazer cuts through the noise.** It is a simple, elegant dashboard designed for the field that answers exactly what you need to know:
-1. **Is it a good night to go outside?** (Evaluated using cloud forecasts & AI seeing models).
+1. **Is it a good night to go outside?** (Evaluated using cloud forecasts & optional AI seeing models — a rule-based fallback works without any API keys).
 2. **What can I actually see?** (Dynamically filtered by your location's light pollution / Bortle Class).
 3. **Where should I point my telescope or binoculars?** (Includes simple star-hopping directions, planet positions, and an interactive sky map).
 
@@ -72,7 +72,7 @@ graph TD
     CR -->|Astrometrics| SF[(Skyfield Engine)]
     CR -->|Weather Forecast| OM[Open-Meteo API]
     CR -->|Star Scanning| SB[SIMBAD TAP Database]
-    CR -->|AI Seeing Report| GM[Google Gemini API]
+    CR -.->|AI Seeing Report (optional)| GM[Gemini / LLM API]
     CR -->|Asteroids| NS[NASA NeoWs API]
 ```
 
@@ -98,6 +98,8 @@ graph TD
 
 ## 🛠️ Local Development
 
+> 💡 **No API keys required!** The app runs with free public APIs by default. AI insights are optional — skip the AI setup if you just want a working stargazing dashboard.
+
 ### 1. Run the Backend API
 Ensure you have Python 3.11+ installed:
 
@@ -106,7 +108,12 @@ cd api
 python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
-uvicorn main:app --host 0.0.0.0 --port 8181 --reload
+
+# Run without AI keys (uses free Open-Meteo + rule-based scoring):
+AI_API_URL="" AI_API_KEY="" NASA_APOD_KEY=DEMO_KEY uvicorn main:app --host 0.0.0.0 --port 8181 --reload
+
+# Or with your own Gemini API key for AI insights:
+# AI_API_KEY=your_key uvicorn main:app --host 0.0.0.0 --port 8181 --reload
 ```
 
 The API docs will be available at `http://localhost:8181/docs`.
@@ -134,19 +141,49 @@ Open `http://localhost:8000`. The frontend will automatically detect the localho
 
 ## ⚙️ Environment Variables
 
-The backend API reads the following variables (configured in your `.env` file locally or in the Cloud Run console):
+The backend API reads the following variables (configured in your `.env` file locally or in the Cloud Run console).
 
-| Variable | Description | Example / Default |
+> **🔒 Security:** This repository contains **no API keys or secrets**. All API keys below must be supplied by **you** in your own `.env` file or deployment environment. Never commit `.env` files or real credentials to version control.
+
+### Required for Core Functionality (No API Keys Needed)
+The app works **without any AI or third-party API keys** — it falls back to free public APIs:
+
+| Variable | Description | Default |
 | :--- | :--- | :--- |
-| `AI_API_KEY` | Google Gemini API Key | `AIzaSy...` |
-| `NASA_API_KEY` | NASA Developer API Key (NEO Tracker) | `DEMO_KEY` |
-| `DB_DIR` | Absolute path to the directory where the SQLite database is stored. Set this to `/mnt/db` when using a GCS persistent volume on Cloud Run. | `../` |
-| `OBSERVER_LAT` | Default latitude for fallback queries | `40.126` |
-| `OBSERVER_LON` | Default longitude for fallback queries | `-83.037` |
+| `OBSERVER_LAT` | Default latitude | `40.0638` |
+| `OBSERVER_LON` | Default longitude | `-83.0457` |
 | `OBSERVER_TIMEZONE` | Default timezone name | `America/New_York` |
-| `VAPID_PUBLIC_KEY` | Public key for push notifications | *(Generate via pywebpush)* |
-| `VAPID_PRIVATE_KEY` | Private key for push notifications | *(Generate via pywebpush)* |
-| `VAPID_ADMIN_EMAIL` | Admin contact email for push server | `admin@example.com` |
+| `OBSERVER_ELEVATION_M` | Elevation in meters | `250` |
+| `TELESCOPE_APERTURE_MM` | Telescope aperture | `130` |
+| `TELESCOPE_FOCAL_MM` | Telescope focal length | `650` |
+| `DB_DIR` | Path to SQLite database directory (Cloud Run: `/mnt/db`) | `../` |
+
+### Optional: AI Insights (Extra Feature)
+> 🧠 **AI insights are optional.** If you don't set these, the app uses **rule-based scoring** from free public weather data (Open-Meteo) and works perfectly fine. Only set these if you want AI-generated descriptions and personalized recommendations.
+
+| Variable | Description | Example |
+| :--- | :--- | :--- |
+| `AI_MODEL` | AI model name (Gemini, GPT-4, Qwen, etc.) | `gemini-2.5-flash` |
+| `AI_API_URL` | AI API endpoint URL | `https://generativelanguage.googleapis.com/v1beta/openai/chat/completions` |
+| `AI_API_KEY` | Your AI provider's API key | `AIzaSy...` |
+| `AI_TIMEOUT` | Timeout in seconds before falling back to rules | `60` |
+| `FALLBACK_AI_API_URL` *(optional)* | Backup AI endpoint | |
+| `FALLBACK_AI_MODEL` *(optional)* | Backup AI model | |
+| `FALLBACK_AI_API_KEY` *(optional)* | Backup AI API key | |
+
+**How it works:** When AI vars are unset, the API returns `ai_powered: false` and the frontend gracefully shows "📐 Rule-based" with all core weather charts and seeing scores intact. No errors, no broken UI.
+
+### Optional: Push Notifications
+| Variable | Description |
+| :--- | :--- |
+| `VAPID_PUBLIC_KEY` | Public key for push notifications |
+| `VAPID_PRIVATE_KEY` | Private key for push notifications |
+| `VAPID_ADMIN_EMAIL` | Admin contact email |
+
+### Optional: NASA APIs (Free Tier Available)
+| Variable | Description | Default |
+| :--- | :--- | :--- |
+| `NASA_APOD_KEY` | NASA API key for Astronomy Picture of the Day | `DEMO_KEY` (free, 30 req/hr) |
 
 ### CI/CD Configuration (GitHub Actions)
 
