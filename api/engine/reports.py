@@ -235,7 +235,7 @@ def get_constellations(lat=None, lon=None, filter_famous=False) -> list[dict]:
     import os
     file_path = os.path.join(os.path.dirname(__file__), 'constellations_enriched.json')
     try:
-        with open(file_path, 'r') as f:
+        with open(file_path, 'r', encoding='utf-8') as f:
             const_data = json.load(f)
     except:
         return []

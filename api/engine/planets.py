@@ -193,7 +193,7 @@ def get_constellation_window(abbr: str, dt: Optional[date] = None, lat=None, lon
 
     file_path = os.path.join(os.path.dirname(__file__), '..', 'constellations_enriched.json')
     try:
-        with open(file_path, 'r') as f:
+        with open(file_path, 'r', encoding='utf-8') as f:
             const_data = json.load(f)
     except Exception:
         return {"status": "Database error"}

@@ -129,7 +129,7 @@ NEARBY_TARGETS = [
 # Loaded from data/targets.json
 def _load_targets_json():
     path = os.path.join(os.path.dirname(__file__), "data", "targets.json")
-    with open(path, "r") as f:
+    with open(path, "r", encoding="utf-8") as f:
         return json.load(f)
 
 OTHER_TARGETS = _load_targets_json()

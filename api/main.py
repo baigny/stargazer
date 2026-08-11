@@ -194,7 +194,7 @@ def health():
         if not os.path.exists(pkg_path):
             pkg_path = os.path.join(os.path.dirname(__file__), "package.json")
             
-        with open(pkg_path, "r") as f:
+        with open(pkg_path, "r", encoding="utf-8") as f:
             pkg_data = json.load(f)
             if "version" in pkg_data:
                 version = f"v{pkg_data['version']}"

@@ -15,7 +15,7 @@ def init_db():
     if not os.path.exists(IMG_DIR):
         os.makedirs(IMG_DIR, exist_ok=True)
     if not os.path.exists(JSON_PATH):
-        with open(JSON_PATH, "w") as f:
+        with open(JSON_PATH, "w", encoding="utf-8") as f:
             json.dump([], f)
 
 # Initialize on import
@@ -23,13 +23,13 @@ init_db()
 
 def _load_data() -> list:
     try:
-        with open(JSON_PATH, "r") as f:
+        with open(JSON_PATH, "r", encoding="utf-8") as f:
             return json.load(f)
     except:
         return []
 
 def _save_data(data: list):
-    with open(JSON_PATH, "w") as f:
+    with open(JSON_PATH, "w", encoding="utf-8") as f:
         json.dump(data, f)
 
 def moderate_image(image_base64: str) -> tuple[bool, str]:
@@ -119,7 +119,7 @@ def get_gallery_entries(target_id: str = None) -> list[dict]:
 def get_gallery_image(entry_id: int) -> str:
     img_path = os.path.join(IMG_DIR, f"{entry_id}.b64")
     try:
-        with open(img_path, "r") as f:
+        with open(img_path, "r", encoding="utf-8") as f:
             return f.read()
     except FileNotFoundError:
         return ""

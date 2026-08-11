@@ -30,7 +30,7 @@ _BORTLE_SCALE_PATH = os.path.join(
 
 
 def _load_bortle_scale() -> list[dict]:
-    with open(_BORTLE_SCALE_PATH, "r") as f:
+    with open(_BORTLE_SCALE_PATH, "r", encoding="utf-8") as f:
         return json.load(f)
 
 
